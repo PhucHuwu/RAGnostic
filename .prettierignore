@@ -1,0 +1,11 @@
+.git/
+.opencode/
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+dist/
+**/dist/
+.venv/
+venv/
+*.log

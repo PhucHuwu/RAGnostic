@@ -70,6 +70,30 @@ Backend includes structured JSON logging with required fields:
 - `user_id`
 - `metadata`
 
+## Code quality commands
+
+At repository root:
+
+```bash
+npm install
+```
+
+- Lint all: `npm run lint`
+- Typecheck all: `npm run typecheck`
+- Format all: `npm run format`
+- Check format only: `npm run format:check`
+
+Python tooling uses:
+
+- `ruff` for lint + formatter
+- `mypy` for type checking
+
+Node tooling uses:
+
+- `eslint` for lint
+- `typescript` for type checking
+- `prettier` for formatting
+
 ## Notes
 
 - This commit initializes project skeleton only, no business logic yet.
