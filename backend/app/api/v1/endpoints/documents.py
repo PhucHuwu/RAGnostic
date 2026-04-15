@@ -5,9 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Request, UploadFile, status
 
-from app.api.deps import CurrentUser, raise_api_error
+from app.api.deps import CurrentUser, DbSession, raise_api_error
 from app.core.config import settings
-from app.models.entities import Document
+from app.models.db import DocumentDB
 from app.schemas.documents import DocumentPreviewResponse, DocumentResponse
 from app.services.store import store
 
@@ -15,7 +15,7 @@ router = APIRouter()
 UploadDocument = Annotated[UploadFile, File(...)]
 
 
-def _to_document_response(document: Document) -> DocumentResponse:
+def _to_document_response(document: DocumentDB) -> DocumentResponse:
     return DocumentResponse(
         id=document.id,
         owner_user_id=document.owner_user_id,
@@ -40,8 +40,9 @@ async def upload_document(
     request: Request,
     file: UploadDocument,
     current_user: CurrentUser,
+    db: DbSession,
 ) -> DocumentResponse:
-    profile = store.get_profile(profile_id)
+    profile = store.get_profile(db, profile_id)
     if profile is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
     if profile.user_id != current_user.id:
@@ -70,6 +71,7 @@ async def upload_document(
 
     checksum = hashlib.sha256(raw).hexdigest()
     document = store.create_document(
+        db,
         owner_user_id=current_user.id,
         profile_id=profile_id,
         file_name=file_name,
@@ -80,6 +82,8 @@ async def upload_document(
     )
     document.status = "READY"
     document.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(document)
     return _to_document_response(document)
 
 
@@ -88,13 +92,14 @@ def list_documents(
     profile_id: str,
     request: Request,
     current_user: CurrentUser,
+    db: DbSession,
 ) -> list[DocumentResponse]:
-    profile = store.get_profile(profile_id)
+    profile = store.get_profile(db, profile_id)
     if profile is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
     if profile.user_id != current_user.id:
         raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
-    docs = store.list_documents_for_profile(profile_id)
+    docs = store.list_documents_for_profile(db, profile_id)
     return [_to_document_response(doc) for doc in docs]
 
 
@@ -103,8 +108,9 @@ def get_document(
     document_id: str,
     request: Request,
     current_user: CurrentUser,
+    db: DbSession,
 ) -> DocumentResponse:
-    document = store.get_document(document_id)
+    document = store.get_document(db, document_id)
     if document is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
     if document.owner_user_id != current_user.id:
@@ -117,13 +123,14 @@ def delete_document(
     document_id: str,
     request: Request,
     current_user: CurrentUser,
+    db: DbSession,
 ) -> dict[str, str]:
-    document = store.get_document(document_id)
+    document = store.get_document(db, document_id)
     if document is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
     if document.owner_user_id != current_user.id:
         raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
-    store.soft_delete_document(document_id)
+    store.soft_delete_document(db, document_id)
     return {"message": "Document deleted"}
 
 
@@ -132,8 +139,9 @@ def preview_document(
     document_id: str,
     request: Request,
     current_user: CurrentUser,
+    db: DbSession,
 ) -> DocumentPreviewResponse:
-    document = store.get_document(document_id)
+    document = store.get_document(db, document_id)
     if document is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
     if document.owner_user_id != current_user.id:

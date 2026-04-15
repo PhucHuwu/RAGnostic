@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import AdminUser
+from app.api.deps import AdminUser, DbSession
 from app.schemas.logs import LogRecord, LogSearchResponse
 from app.services.store import store
 
@@ -13,6 +13,7 @@ router = APIRouter()
 @router.get("/search")
 def search_logs(
     _: AdminUser,
+    db: DbSession,
     level: str | None = Query(default=None),
     service: str | None = Query(default=None),
     q: str | None = Query(default=None),
@@ -21,7 +22,7 @@ def search_logs(
     user_id: str | None = Query(default=None),
 ) -> LogSearchResponse:
     records: list[LogRecord] = []
-    for audit in store.audit_logs:
+    for audit in store.list_audit_logs(db, limit=500):
         text_payload = f"{audit.action} {audit.resource_type} {audit.resource_id}".lower()
         if q and q.lower() not in text_payload:
             continue
@@ -53,7 +54,7 @@ def search_logs(
 
 
 @router.get("/stream")
-def stream_logs(_: AdminUser) -> StreamingResponse:
+def stream_logs(_: AdminUser, db: DbSession) -> StreamingResponse:
     def event_stream():
         now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
         yield (
@@ -62,7 +63,7 @@ def stream_logs(_: AdminUser) -> StreamingResponse:
             '"event":"logs.stream.connected","message":"stream connected",'
             '"request_id":null,"session_id":null,"user_id":null,"metadata":{}}\n\n'
         )
-        for audit in store.audit_logs[-100:]:
+        for audit in reversed(store.list_audit_logs(db, limit=100)):
             ts = audit.created_at.isoformat().replace("+00:00", "Z")
             payload = (
                 f"event: log\n"

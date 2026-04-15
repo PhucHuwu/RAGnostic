@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     jwt_access_expires_minutes: int = 30
     jwt_refresh_expires_days: int = 7
 
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_db: str = "ragnostic"
+    postgres_user: str = "ragnostic"
+    postgres_password: str = "ragnostic"
+
     memory_window: int = 10
 
     upload_max_size_bytes: int = 10 * 1024 * 1024
@@ -24,6 +30,12 @@ class Settings(BaseSettings):
 
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]
+
+    def database_url(self) -> str:
+        return (
+            f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
 
 
 settings = Settings()

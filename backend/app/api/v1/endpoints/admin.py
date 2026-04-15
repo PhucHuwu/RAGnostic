@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request, status
 
-from app.api.deps import AdminUser, raise_api_error
+from app.api.deps import AdminUser, DbSession, raise_api_error
 from app.core.security import hash_password
 from app.schemas.admin import (
     AdminResetPasswordRequest,
@@ -21,8 +20,8 @@ router = APIRouter()
 
 
 @router.get("/users")
-def list_users(_: AdminUser) -> list[dict]:
-    users = store.list_users()
+def list_users(_: AdminUser, db: DbSession) -> list[dict]:
+    users = store.list_users(db)
     return [
         {
             "id": user.id,
@@ -39,8 +38,11 @@ def list_users(_: AdminUser) -> list[dict]:
 
 
 @router.post("/users")
-def create_user(payload: AdminUserCreateRequest, current_admin: AdminUser) -> UserInfo:
+def create_user(
+    payload: AdminUserCreateRequest, current_admin: AdminUser, db: DbSession
+) -> UserInfo:
     user = store.create_user(
+        db,
         username=payload.username,
         password=payload.password,
         role=payload.role,
@@ -48,6 +50,7 @@ def create_user(payload: AdminUserCreateRequest, current_admin: AdminUser) -> Us
         email=payload.email,
     )
     store.add_audit_log(
+        db,
         actor_user_id=current_admin.id,
         action="ADMIN_CREATE_USER",
         resource_type="user",
@@ -69,8 +72,9 @@ def update_user(
     payload: AdminUserUpdateRequest,
     request: Request,
     current_admin: AdminUser,
+    db: DbSession,
 ) -> dict:
-    user = store.get_user(user_id)
+    user = store.get_user(db, user_id)
     if user is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "User not found")
 
@@ -81,8 +85,10 @@ def update_user(
         user.status = payload.status
     user.updated_at = datetime.now(UTC)
     after = {"role": user.role, "status": user.status}
+    db.commit()
 
     store.add_audit_log(
+        db,
         actor_user_id=current_admin.id,
         action="ADMIN_UPDATE_USER",
         resource_type="user",
@@ -99,13 +105,16 @@ def reset_user_password(
     payload: AdminResetPasswordRequest,
     request: Request,
     current_admin: AdminUser,
+    db: DbSession,
 ) -> dict[str, str]:
-    user = store.get_user(user_id)
+    user = store.get_user(db, user_id)
     if user is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "User not found")
     user.password_hash = hash_password(payload.new_password)
     user.updated_at = datetime.now(UTC)
+    db.commit()
     store.add_audit_log(
+        db,
         actor_user_id=current_admin.id,
         action="ADMIN_RESET_PASSWORD",
         resource_type="user",
@@ -117,8 +126,8 @@ def reset_user_password(
 
 
 @router.get("/documents")
-def admin_list_documents(_: AdminUser) -> list[DocumentResponse]:
-    docs = store.list_documents()
+def admin_list_documents(_: AdminUser, db: DbSession) -> list[DocumentResponse]:
+    docs = store.list_documents(db)
     return [
         DocumentResponse(
             id=document.id,
@@ -145,13 +154,20 @@ def admin_delete_document(
     document_id: str,
     request: Request,
     current_admin: AdminUser,
+    db: DbSession,
 ) -> dict[str, str]:
-    doc = store.get_document(document_id)
+    doc = store.get_document(db, document_id)
     if doc is None:
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
-    before = asdict(doc)
-    store.soft_delete_document(document_id)
+    before = {
+        "id": doc.id,
+        "status": doc.status,
+        "owner_user_id": doc.owner_user_id,
+        "profile_id": doc.profile_id,
+    }
+    store.soft_delete_document(db, document_id)
     store.add_audit_log(
+        db,
         actor_user_id=current_admin.id,
         action="ADMIN_DELETE_DOCUMENT",
         resource_type="document",
@@ -163,34 +179,26 @@ def admin_delete_document(
 
 
 @router.get("/system-config/model")
-def get_system_model_config(_: AdminUser) -> dict:
-    return {
-        "provider": store.system_model_config.provider,
-        "model_name": store.system_model_config.model_name,
-        "params": store.system_model_config.params,
-    }
+def get_system_model_config(_: AdminUser, db: DbSession) -> dict:
+    return store.get_system_model_config(db)
 
 
 @router.put("/system-config/model")
 def update_system_model_config(
     payload: SystemModelConfigRequest,
     current_admin: AdminUser,
+    db: DbSession,
 ) -> dict:
-    before = {
-        "provider": store.system_model_config.provider,
-        "model_name": store.system_model_config.model_name,
-        "params": store.system_model_config.params,
-    }
-    store.system_model_config.provider = payload.provider
-    store.system_model_config.model_name = payload.model_name
-    store.system_model_config.params = payload.params
-
-    after = {
-        "provider": store.system_model_config.provider,
-        "model_name": store.system_model_config.model_name,
-        "params": store.system_model_config.params,
-    }
+    before = store.get_system_model_config(db)
+    after = store.update_system_model_config(
+        db,
+        provider=payload.provider,
+        model_name=payload.model_name,
+        params=payload.params,
+        updated_by=current_admin.id,
+    )
     store.add_audit_log(
+        db,
         actor_user_id=current_admin.id,
         action="ADMIN_UPDATE_MODEL_CONFIG",
         resource_type="system_config",

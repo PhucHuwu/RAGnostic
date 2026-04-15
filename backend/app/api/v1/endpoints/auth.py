@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, status
 from app.api.deps import (
     ClientIP,
     CurrentUser,
+    DbSession,
     enforce_auth_rate_limit,
     hash_refresh_token,
     raise_api_error,
@@ -26,9 +27,11 @@ router = APIRouter()
 
 
 @router.post("/login")
-def login(payload: LoginRequest, request: Request, client_ip: ClientIP) -> LoginResponse:
+def login(
+    payload: LoginRequest, request: Request, client_ip: ClientIP, db: DbSession
+) -> LoginResponse:
     enforce_auth_rate_limit(f"login:{client_ip}")
-    user = store.get_user_by_username(payload.username)
+    user = store.get_user_by_username(db, payload.username)
     if user is None or not verify_password(payload.password, user.password_hash):
         raise_api_error(
             request,
@@ -59,6 +62,7 @@ def login(payload: LoginRequest, request: Request, client_ip: ClientIP) -> Login
         timedelta(days=settings.jwt_refresh_expires_days),
     )
     session = store.create_session(
+        db,
         user_id=user.id,
         refresh_token=refresh_token,
         ip_address=client_ip,
@@ -67,6 +71,7 @@ def login(payload: LoginRequest, request: Request, client_ip: ClientIP) -> Login
         session_id=refresh_jti,
     )
     user.last_login_at = session.updated_at
+    db.commit()
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -75,7 +80,7 @@ def login(payload: LoginRequest, request: Request, client_ip: ClientIP) -> Login
 
 
 @router.post("/refresh")
-def refresh(payload: TokenRefreshRequest, request: Request) -> TokenRefreshResponse:
+def refresh(payload: TokenRefreshRequest, request: Request, db: DbSession) -> TokenRefreshResponse:
     enforce_auth_rate_limit("refresh:global")
     from app.core.security import decode_token
 
@@ -98,7 +103,7 @@ def refresh(payload: TokenRefreshRequest, request: Request) -> TokenRefreshRespo
             request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Invalid token subject"
         )
 
-    user = store.get_user(user_id)
+    user = store.get_user(db, user_id)
     if user is None:
         raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "User not found")
 
@@ -106,7 +111,7 @@ def refresh(payload: TokenRefreshRequest, request: Request) -> TokenRefreshRespo
     if not isinstance(session_id, str):
         raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Missing session id")
 
-    session = store.get_session(session_id)
+    session = store.get_session(db, session_id)
     if session is None or session.revoked_at is not None:
         raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Session revoked")
 
@@ -135,12 +140,12 @@ def refresh(payload: TokenRefreshRequest, request: Request) -> TokenRefreshRespo
         settings.jwt_secret,
         timedelta(days=settings.jwt_refresh_expires_days),
     )
-    store.rotate_refresh_token(session.id, refresh_token, settings.jwt_refresh_expires_days)
+    store.rotate_refresh_token(db, session.id, refresh_token, settings.jwt_refresh_expires_days)
     return TokenRefreshResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/logout")
-def logout(payload: TokenLogoutRequest, request: Request) -> dict[str, str]:
+def logout(payload: TokenLogoutRequest, request: Request, db: DbSession) -> dict[str, str]:
     from app.core.security import decode_token
 
     try:
@@ -150,12 +155,12 @@ def logout(payload: TokenLogoutRequest, request: Request) -> dict[str, str]:
 
     session_id = token_payload.get("sid")
     if isinstance(session_id, str):
-        session = store.get_session(session_id)
+        session = store.get_session(db, session_id)
         if (
             session is not None
             and hash_refresh_token(payload.refresh_token) == session.refresh_token_hash
         ):
-            store.revoke_session(session_id)
+            store.revoke_session(db, session_id)
     return {"message": "Logged out"}
 
 

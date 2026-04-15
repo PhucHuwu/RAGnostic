@@ -7,11 +7,13 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.request_context import set_user_id
 from app.core.security import AuthTokenType, UserRole, decode_token
-from app.models.entities import User
+from app.db.session import get_db
+from app.models.db import UserDB
 from app.services.store import store
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -78,8 +80,9 @@ def enforce_auth_rate_limit(key: str) -> None:
 
 def get_current_user(
     request: Request,
+    db: Annotated[Session, Depends(get_db)],
     credentials: BearerCredentials,
-) -> User:
+) -> UserDB:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise_api_error(
             request,
@@ -112,17 +115,17 @@ def get_current_user(
             request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Invalid token subject"
         )
 
-    user = store.get_user(user_id)
+    user = store.get_user(db, user_id)
     if user is None:
         raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "User not found")
     set_user_id(user.id)
     return user
 
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUser = Annotated[UserDB, Depends(get_current_user)]
 
 
-def require_admin(current_user: CurrentUser) -> User:
+def require_admin(current_user: CurrentUser) -> UserDB:
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -136,8 +139,9 @@ def require_admin(current_user: CurrentUser) -> User:
     return current_user
 
 
-AdminUser = Annotated[User, Depends(require_admin)]
+AdminUser = Annotated[UserDB, Depends(require_admin)]
 ClientIP = Annotated[str, Depends(get_client_ip)]
+DbSession = Annotated[Session, Depends(get_db)]
 
 
 def hash_refresh_token(refresh_token: str) -> str:
