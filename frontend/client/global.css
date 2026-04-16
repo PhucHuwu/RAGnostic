@@ -1,0 +1,135 @@
+/** @import must precede all other statements */
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /**
+   * Tailwind CSS theme
+   * tailwind.config.ts expects the following color variables to be expressed as HSL values.
+   * A different format will require also updating the theme in tailwind.config.ts.
+  */
+  :root {
+    /* AI Futuristic + Glassmorphism Theme */
+    --background: 210 40% 98%;
+    --foreground: 215 18% 15%;
+
+    --card: 210 50% 97%;
+    --card-foreground: 215 18% 15%;
+
+    --popover: 210 50% 97%;
+    --popover-foreground: 215 18% 15%;
+
+    /* Primary: Deep Blue (Slate-Blue) */
+    --primary: 217 84% 39%;
+    --primary-foreground: 210 40% 98%;
+
+    /* Secondary: Cyan/Teal */
+    --secondary: 186 75% 48%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Muted: Slate */
+    --muted: 215 16% 55%;
+    --muted-foreground: 215 12% 45%;
+
+    /* Accent: Amber/Orange */
+    --accent: 38 87% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Border: Subtle slate with cyan tint */
+    --border: 213 32% 85%;
+    --input: 210 50% 96%;
+    --ring: 186 75% 48%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 210 45% 96%;
+    --sidebar-foreground: 215 18% 25%;
+    --sidebar-primary: 217 84% 39%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 186 75% 48%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 213 32% 88%;
+    --sidebar-ring: 186 75% 48%;
+  }
+
+  .dark {
+    /* Dark AI Futuristic Theme */
+    --background: 215 28% 14%;
+    --foreground: 210 40% 97%;
+
+    --card: 215 28% 18%;
+    --card-foreground: 210 40% 97%;
+
+    --popover: 215 28% 18%;
+    --popover-foreground: 210 40% 97%;
+
+    --primary: 186 75% 55%;
+    --primary-foreground: 215 28% 14%;
+
+    --secondary: 186 75% 48%;
+    --secondary-foreground: 210 40% 97%;
+
+    --muted: 215 16% 48%;
+    --muted-foreground: 215 16% 72%;
+
+    --accent: 38 87% 55%;
+    --accent-foreground: 215 28% 14%;
+
+    --destructive: 0 73% 50%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 25% 26%;
+    --input: 215 28% 22%;
+    --ring: 186 75% 55%;
+
+    --sidebar-background: 215 28% 16%;
+    --sidebar-foreground: 210 40% 92%;
+    --sidebar-primary: 186 75% 55%;
+    --sidebar-primary-foreground: 215 28% 14%;
+    --sidebar-accent: 38 87% 55%;
+    --sidebar-accent-foreground: 215 28% 14%;
+    --sidebar-border: 215 25% 28%;
+    --sidebar-ring: 186 75% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: "Manrope", sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+
+  code, pre {
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  :where(p, span, li, a, button, label, td, th) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  pre,
+  code {
+    overflow-x: auto;
+    white-space: pre;
+  }
+}
