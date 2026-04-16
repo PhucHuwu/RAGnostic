@@ -1,4 +1,6 @@
-import { useNavigate } from "react-router-dom";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 
 interface PlaceholderProps {
@@ -7,8 +9,12 @@ interface PlaceholderProps {
   goBack?: boolean;
 }
 
-const Placeholder = ({ title, description, goBack = true }: PlaceholderProps) => {
-  const navigate = useNavigate();
+const Placeholder = ({
+  title,
+  description,
+  goBack = true,
+}: PlaceholderProps) => {
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
@@ -25,7 +31,7 @@ const Placeholder = ({ title, description, goBack = true }: PlaceholderProps) =>
         </p>
         {goBack && (
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => router.back()}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />

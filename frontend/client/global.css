@@ -108,18 +108,25 @@
     font-family: "Manrope", sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: "Space Grotesk", sans-serif;
     font-weight: 600;
     letter-spacing: -0.5px;
   }
 
-  code, pre {
+  code,
+  pre {
     font-family: "JetBrains Mono", monospace;
   }
 
   body {
     @apply bg-background text-foreground;
+    display: block !important;
   }
 
   :where(p, span, li, a, button, label, td, th) {

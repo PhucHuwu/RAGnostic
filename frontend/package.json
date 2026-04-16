@@ -3,19 +3,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "next dev -p 3000",
+    "dev:server": "tsx watch server/node-build.ts",
     "lint": "tsc --noEmit",
-    "build": "npm run build:client && npm run build:server",
-    "build:client": "vite build",
-    "build:server": "vite build --config vite.config.server.ts",
-    "start": "node dist/server/node-build.mjs",
+    "build": "next build",
+    "start": "NODE_ENV=production tsx server/node-build.ts",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "next": "^14.2.31",
     "zod": "^3.25.76"
   },
   "devDependencies": {

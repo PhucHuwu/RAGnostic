@@ -1,5 +1,11 @@
+"use client";
+
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ApiError, login } from "@/lib/api";
+import { setAuthSession } from "@/lib/auth";
+
 import {
   Eye,
   EyeOff,
@@ -13,7 +19,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const Login = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,18 +31,35 @@ const Login = () => {
     setError("");
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      if (username && password) {
-        // Mock login - in real app, check role and redirect accordingly
-        // For demo: if username is "admin", go to admin; otherwise go to user area
-        const isAdmin = username.toLowerCase().includes("admin");
-        navigate(isAdmin ? "/admin/users" : "/app/profiles");
-      } else {
-        setError("Vui lòng nhập tên đăng nhập và mật khẩu");
-      }
+    if (!username || !password) {
+      setError("Vui lòng nhập tên đăng nhập và mật khẩu");
       setIsLoading(false);
-    }, 1000);
+      return;
+    }
+
+    try {
+      const response = await login(username, password);
+      setAuthSession({
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token,
+        user: {
+          id: response.user.id,
+          username: response.user.username,
+          role: response.user.role,
+        },
+      });
+      router.push(
+        response.user.role === "ADMIN" ? "/admin/users" : "/app/profiles",
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể đăng nhập. Vui lòng thử lại.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -45,7 +68,7 @@ const Login = () => {
       <div className="flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
         <div className="w-full max-w-md animate-fade-in">
           {/* Logo */}
-          <Link to="/" className="inline-flex items-center gap-2 mb-12">
+          <Link href="/" className="inline-flex items-center gap-2 mb-12">
             <div className="w-10 h-10 rounded-lg bg-gradient-ai flex items-center justify-center">
               <Brain className="w-6 h-6 text-white" />
             </div>
@@ -163,12 +186,12 @@ const Login = () => {
             <span className="text-muted-foreground">
               Bạn chưa có tài khoản?{" "}
             </span>
-            <a
-              href="#"
+            <Link
+              href="/register"
               className="font-medium text-primary hover:text-primary/80 transition-colors"
             >
               Đăng ký ngay
-            </a>
+            </Link>
           </div>
 
           {/* Demo Credentials */}

@@ -1,14 +1,22 @@
-import { Link } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { type ReactNode } from "react";
 import { ArrowLeft, Lock, AlertTriangle } from "lucide-react";
 
 interface ErrorPageProps {
   code: string;
   title: string;
   description: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
 }
 
-const ErrorPageTemplate = ({ code, title, description, icon }: ErrorPageProps) => (
+const ErrorPageTemplate = ({
+  code,
+  title,
+  description,
+  icon,
+}: ErrorPageProps) => (
   <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12 relative overflow-hidden">
     <div className="absolute inset-0 -z-10">
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"></div>
@@ -20,13 +28,17 @@ const ErrorPageTemplate = ({ code, title, description, icon }: ErrorPageProps) =
         {icon}
       </div>
 
-      <h1 className="text-6xl font-display font-bold mb-2 text-destructive">{code}</h1>
+      <h1 className="text-6xl font-display font-bold mb-2 text-destructive">
+        {code}
+      </h1>
       <p className="text-2xl font-display font-bold mb-4">{title}</p>
-      <p className="text-muted-foreground mb-8 leading-relaxed">{description}</p>
+      <p className="text-muted-foreground mb-8 leading-relaxed">
+        {description}
+      </p>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <Link
-          to="/"
+          href="/"
           className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -44,7 +56,10 @@ const ErrorPageTemplate = ({ code, title, description, icon }: ErrorPageProps) =
         <p className="text-sm text-muted-foreground mb-4">
           Cần giúp đỡ? Liên hệ với chúng tôi qua:
         </p>
-        <a href="mailto:support@ragnostic.io" className="text-primary hover:text-primary/80 font-medium">
+        <a
+          href="mailto:support@ragnostic.io"
+          className="text-primary hover:text-primary/80 font-medium"
+        >
           support@ragnostic.io
         </a>
       </div>

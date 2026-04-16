@@ -6,17 +6,17 @@
     "lint": "npm run lint:frontend && npm run lint:bff && npm run lint:python",
     "lint:frontend": "npm --prefix frontend run lint",
     "lint:bff": "npm --prefix bff run lint",
-    "lint:python": "python3 -m ruff check backend/app backend/tests worker/worker_app",
+    "lint:python": "uvx --from ruff==0.14.0 ruff check backend/app backend/tests worker/worker_app",
     "typecheck": "npm run typecheck:frontend && npm run typecheck:bff && npm run typecheck:python",
     "typecheck:frontend": "npm --prefix frontend run typecheck",
     "typecheck:bff": "npm --prefix bff run typecheck",
     "typecheck:python": "python3 -m mypy backend/app worker/worker_app",
     "format": "npm run format:web && npm run format:python",
     "format:web": "prettier --write \"**/*.{md,mdx,json,yml,yaml,js,cjs,mjs,ts,tsx,css}\"",
-    "format:python": "python3 -m ruff format backend/app backend/tests worker/worker_app",
+    "format:python": "uvx --from ruff==0.14.0 ruff format backend/app backend/tests worker/worker_app",
     "format:check": "npm run format:web:check && npm run format:python:check",
     "format:web:check": "prettier --check \"**/*.{md,mdx,json,yml,yaml,js,cjs,mjs,ts,tsx,css}\"",
-    "format:python:check": "python3 -m ruff format --check backend/app backend/tests worker/worker_app"
+    "format:python:check": "uvx --from ruff==0.14.0 ruff format --check backend/app backend/tests worker/worker_app"
   },
   "devDependencies": {
     "prettier": "^3.3.3"

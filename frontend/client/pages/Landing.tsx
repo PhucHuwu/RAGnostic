@@ -1,5 +1,13 @@
-import { Link } from "react-router-dom";
-import { ArrowRight, Sparkles, Zap, Shield, Brain, Database, Gauge } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  Sparkles,
+  Zap,
+  Shield,
+  Brain,
+  Database,
+  Gauge,
+} from "lucide-react";
 
 const Landing = () => {
   return (
@@ -15,13 +23,13 @@ const Landing = () => {
           </div>
           <div className="flex gap-4">
             <Link
-              to="/login"
+              href="/login"
               className="px-6 py-2 rounded-lg font-medium text-foreground hover:bg-muted/50 transition-colors"
             >
               Đăng nhập
             </Link>
             <Link
-              to="/login"
+              href="/login"
               className="px-6 py-2 rounded-lg font-medium text-white bg-primary hover:bg-primary/90 transition-colors"
             >
               Bắt đầu
@@ -40,7 +48,9 @@ const Landing = () => {
         <div className="max-w-6xl mx-auto text-center animate-fade-in">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-8">
             <Sparkles className="w-4 h-4 text-accent" />
-            <span className="text-sm font-medium text-accent">Công nghệ AI tiên tiến nhất</span>
+            <span className="text-sm font-medium text-accent">
+              Công nghệ AI tiên tiến nhất
+            </span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight">
@@ -51,13 +61,14 @@ const Landing = () => {
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
-            Xây dựng các ứng dụng AI có khả năng truy vấn thông minh với dữ liệu của bạn.
-            RAGnostic cung cấp nền tảng RAG toàn diện cho các tổ chức hiện đại.
+            Xây dựng các ứng dụng AI có khả năng truy vấn thông minh với dữ liệu
+            của bạn. RAGnostic cung cấp nền tảng RAG toàn diện cho các tổ chức
+            hiện đại.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              to="/login"
+              href="/login"
               className="inline-flex items-center justify-center px-8 py-4 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all hover:shadow-lg group"
             >
               Bắt đầu ngay
@@ -189,10 +200,11 @@ const Landing = () => {
             Sẵn sàng để bắt đầu?
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
-            Tham gia hàng nghìn tổ chức sử dụng RAGnostic để xây dựng các ứng dụng AI thông minh.
+            Tham gia hàng nghìn tổ chức sử dụng RAGnostic để xây dựng các ứng
+            dụng AI thông minh.
           </p>
           <Link
-            to="/login"
+            href="/login"
             className="inline-flex items-center justify-center px-10 py-4 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all hover:shadow-lg group"
           >
             Bắt đầu miễn phí
@@ -219,25 +231,88 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold font-display mb-4">Sản phẩm</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Tính năng</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Giá cả</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Tài liệu</a></li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Tính năng
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Giá cả
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Tài liệu
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold font-display mb-4">Công ty</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Về chúng tôi</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Liên hệ</a></li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Về chúng tôi
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Liên hệ
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold font-display mb-4">Pháp lý</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Điều khoản sử dụng</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Chính sách riêng tư</a></li>
-                <li><a href="#" className="hover:text-foreground transition-colors">Bảo mật</a></li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Điều khoản sử dụng
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Chính sách riêng tư
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="#"
+                    className="hover:text-foreground transition-colors"
+                  >
+                    Bảo mật
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
@@ -245,9 +320,15 @@ const Landing = () => {
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground">
             <p>&copy; 2024 RAGnostic. Bảo lưu mọi quyền.</p>
             <div className="flex gap-6 mt-4 sm:mt-0">
-              <a href="#" className="hover:text-foreground transition-colors">Twitter</a>
-              <a href="#" className="hover:text-foreground transition-colors">GitHub</a>
-              <a href="#" className="hover:text-foreground transition-colors">LinkedIn</a>
+              <a href="#" className="hover:text-foreground transition-colors">
+                Twitter
+              </a>
+              <a href="#" className="hover:text-foreground transition-colors">
+                GitHub
+              </a>
+              <a href="#" className="hover:text-foreground transition-colors">
+                LinkedIn
+              </a>
             </div>
           </div>
         </div>
@@ -298,8 +379,7 @@ const features = [
 const steps = [
   {
     title: "Tạo Profile",
-    description:
-      "Thiết lập một profile chatbot mới với tên và mô tả của bạn.",
+    description: "Thiết lập một profile chatbot mới với tên và mô tả của bạn.",
   },
   {
     title: "Tải tài liệu",

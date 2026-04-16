@@ -12,6 +12,18 @@ Monorepo skeleton for a multi-tenant, domain-agnostic RAG platform based on proj
 
 ## Quick start
 
+### Python version policy
+
+- Required Python version for this repo: `3.12.x`
+- If you use `pyenv`, install and activate from repo root:
+
+```bash
+pyenv install 3.12.8
+pyenv local 3.12.8
+```
+
+This repository includes `.python-version` to make local tooling pick Python 3.12 automatically.
+
 1. Copy environment file:
 
 ```bash

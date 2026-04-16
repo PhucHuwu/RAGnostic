@@ -1,5 +1,7 @@
-import { useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import {
   Upload,
   File,
@@ -7,12 +9,23 @@ import {
   FileJson,
   Trash2,
   Eye,
-  X,
   Check,
   AlertCircle,
   Loader,
 } from "lucide-react";
 import UserLayout from "@/components/layouts/UserLayout";
+import {
+  ApiErrorState,
+  StatCardsSkeleton,
+  TableSkeleton,
+} from "@/components/common/api-state";
+import {
+  ApiError,
+  deleteDocument,
+  listDocuments,
+  uploadDocument,
+  type DocumentResponse,
+} from "@/lib/api";
 
 interface Document {
   id: string;
@@ -26,62 +39,63 @@ interface Document {
 }
 
 const AppDocuments = () => {
-  const { profileId } = useParams();
-  const [documents, setDocuments] = useState<Document[]>([
-    {
-      id: "1",
-      name: "Hướng dẫn sử dụng sản phẩm.pdf",
-      format: "PDF",
-      size: "2.4 MB",
-      sizeBytes: 2400000,
-      uploadedAt: "2024-01-28",
-      status: "READY",
-      progress: 100,
-    },
-    {
-      id: "2",
-      name: "Tài liệu API.docx",
-      format: "DOCX",
-      size: "1.8 MB",
-      sizeBytes: 1800000,
-      uploadedAt: "2024-01-27",
-      status: "READY",
-      progress: 100,
-    },
-    {
-      id: "3",
-      name: "FAQ thường gặp.txt",
-      format: "TXT",
-      size: "0.5 MB",
-      sizeBytes: 500000,
-      uploadedAt: "2024-01-26",
-      status: "INDEXING",
-      progress: 75,
-    },
-    {
-      id: "4",
-      name: "Bảng giá dịch vụ.xlsx",
-      format: "XLSX",
-      size: "0.8 MB",
-      sizeBytes: 800000,
-      uploadedAt: "2024-01-25",
-      status: "PARSING",
-      progress: 30,
-    },
-    {
-      id: "5",
-      name: "Tệp cũ.pdf",
-      format: "PDF",
-      size: "3.2 MB",
-      sizeBytes: 3200000,
-      uploadedAt: "2024-01-24",
-      status: "FAILED",
-    },
-  ]);
+  const params = useParams<{ profileId: string }>();
+  const profileId = params.profileId;
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [isDragActive, setIsDragActive] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  const ALLOWED_EXTS = new Set(["pdf", "docx", "txt"]);
+
+  const mapDocument = (doc: DocumentResponse): Document => ({
+    id: doc.id,
+    name: doc.file_name,
+    format: doc.file_ext.toUpperCase(),
+    size: `${(doc.file_size_bytes / 1024 / 1024).toFixed(1)} MB`,
+    sizeBytes: doc.file_size_bytes,
+    uploadedAt: new Date(doc.uploaded_at).toLocaleDateString("vi-VN"),
+    status: doc.status as Document["status"],
+    progress: doc.status === "READY" ? 100 : undefined,
+  });
+
+  const loadDocuments = useCallback(
+    async (isManualRetry = false) => {
+      if (!profileId) {
+        return;
+      }
+
+      if (isManualRetry) {
+        setIsRetrying(true);
+      } else {
+        setIsLoading(true);
+      }
+      setError(null);
+      try {
+        const docs = await listDocuments(profileId);
+        setDocuments(docs.map(mapDocument));
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Không thể tải danh sách tài liệu");
+        }
+      } finally {
+        setIsLoading(false);
+        setIsRetrying(false);
+      }
+    },
+    [profileId],
+  );
+
+  useEffect(() => {
+    void loadDocuments();
+  }, [loadDocuments]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -98,24 +112,54 @@ const AppDocuments = () => {
     handleFiles(files);
   };
 
-  const handleFiles = (files: FileList) => {
-    Array.from(files).forEach((file) => {
-      const newDoc: Document = {
-        id: String(documents.length + 1),
-        name: file.name,
-        format: file.name.split(".").pop()?.toUpperCase() || "FILE",
-        size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
-        sizeBytes: file.size,
-        uploadedAt: new Date().toLocaleDateString("vi-VN"),
-        status: "UPLOADED",
-        progress: 0,
-      };
-      setDocuments((prev) => [newDoc, ...prev]);
-    });
+  const handleFiles = async (files: FileList) => {
+    if (!profileId) {
+      return;
+    }
+
+    const uploadedDocs: Document[] = [];
+    setError(null);
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!ALLOWED_EXTS.has(ext)) {
+        setError(
+          `Tệp ${file.name} không hợp lệ. Chỉ chấp nhận PDF, DOCX, TXT.`,
+        );
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setError(`Tệp ${file.name} vượt quá 10MB.`);
+        continue;
+      }
+
+      try {
+        const created = await uploadDocument(profileId, file);
+        uploadedDocs.push(mapDocument(created));
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError(`Không thể upload tệp ${file.name}`);
+        }
+      }
+    }
+
+    if (uploadedDocs.length > 0) {
+      setDocuments((prev) => [...uploadedDocs, ...prev]);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setDocuments(documents.filter((doc) => doc.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDocument(id);
+      setDocuments((prev) => prev.filter((doc) => doc.id !== id));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể xóa tài liệu");
+      }
+    }
   };
 
   const getStatusColor = (status: Document["status"]) => {
@@ -216,10 +260,25 @@ const AppDocuments = () => {
               className="hidden"
             />
             <p className="text-xs text-muted-foreground">
-              PDF, TXT, DOCX, XLSX - Tối đa 100MB mỗi file
+              PDF, TXT, DOCX - Tối đa 10MB mỗi file
             </p>
           </div>
         </div>
+
+        {isLoading && (
+          <>
+            <StatCardsSkeleton />
+            <TableSkeleton />
+          </>
+        )}
+
+        {error && (
+          <ApiErrorState
+            message={error}
+            onRetry={() => void loadDocuments(true)}
+            isRetrying={isRetrying}
+          />
+        )}
 
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

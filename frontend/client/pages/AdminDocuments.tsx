@@ -1,6 +1,27 @@
-import { useState } from "react";
-import { Search, Eye, Trash2, FileText, Check, AlertCircle, Loader } from "lucide-react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Search,
+  Eye,
+  Trash2,
+  FileText,
+  Check,
+  AlertCircle,
+  Loader,
+} from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
+import {
+  ApiError,
+  deleteAdminDocument,
+  listAdminDocuments,
+  type DocumentResponse,
+} from "@/lib/api";
+import {
+  ApiErrorState,
+  StatCardsSkeleton,
+  TableSkeleton,
+} from "@/components/common/api-state";
 
 interface AdminDocument {
   id: string;
@@ -9,88 +30,70 @@ interface AdminDocument {
   size: string;
   user: string;
   profile: string;
-  status: "READY" | "PARSING" | "CHUNKING" | "INDEXING" | "FAILED";
+  status: "UPLOADED" | "READY" | "PARSING" | "CHUNKING" | "INDEXING" | "FAILED";
   uploadedAt: string;
   chunks: number;
 }
 
+function mapDocument(item: DocumentResponse): AdminDocument {
+  return {
+    id: item.id,
+    name: item.file_name,
+    format: item.file_ext.toUpperCase(),
+    size: `${(item.file_size_bytes / 1024 / 1024).toFixed(1)} MB`,
+    user: item.owner_user_id,
+    profile: item.profile_id,
+    status: item.status === "DELETED" ? "FAILED" : item.status,
+    uploadedAt: new Date(item.uploaded_at).toLocaleDateString("vi-VN"),
+    chunks: 0,
+  };
+}
+
 const AdminDocuments = () => {
-  const [documents, setDocuments] = useState<AdminDocument[]>([
-    {
-      id: "1",
-      name: "Hướng dẫn sử dụng sản phẩm.pdf",
-      format: "PDF",
-      size: "2.4 MB",
-      user: "john_doe",
-      profile: "Hỗ trợ Khách hàng",
-      status: "READY",
-      uploadedAt: "2024-01-28",
-      chunks: 42,
-    },
-    {
-      id: "2",
-      name: "Tài liệu API.docx",
-      format: "DOCX",
-      size: "1.8 MB",
-      user: "jane_smith",
-      profile: "Tư vấn Tài chính",
-      status: "READY",
-      uploadedAt: "2024-01-27",
-      chunks: 28,
-    },
-    {
-      id: "3",
-      name: "FAQ thường gặp.txt",
-      format: "TXT",
-      size: "0.5 MB",
-      user: "john_doe",
-      profile: "Hỗ trợ Khách hàng",
-      status: "INDEXING",
-      uploadedAt: "2024-01-26",
-      chunks: 15,
-    },
-    {
-      id: "4",
-      name: "Bảng giá dịch vụ.xlsx",
-      format: "XLSX",
-      size: "0.8 MB",
-      user: "alice_brown",
-      profile: "Tư vấn Tài chính",
-      status: "PARSING",
-      uploadedAt: "2024-01-25",
-      chunks: 0,
-    },
-    {
-      id: "5",
-      name: "Tệp cũ.pdf",
-      format: "PDF",
-      size: "3.2 MB",
-      user: "bob_wilson",
-      profile: "Huấn luyện Nhân sự",
-      status: "FAILED",
-      uploadedAt: "2024-01-24",
-      chunks: 0,
-    },
-    {
-      id: "6",
-      name: "Chính sách công ty.pdf",
-      format: "PDF",
-      size: "1.2 MB",
-      user: "jane_smith",
-      profile: "Hỗ trợ Khách hàng",
-      status: "READY",
-      uploadedAt: "2024-01-23",
-      chunks: 18,
-    },
-  ]);
+  const [documents, setDocuments] = useState<AdminDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [profileFilter, setProfileFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  const uniqueUsers = Array.from(new Set(documents.map((d) => d.user)));
-  const uniqueProfiles = Array.from(new Set(documents.map((d) => d.profile)));
+  const loadDocuments = useCallback(async (isManualRetry = false) => {
+    if (isManualRetry) {
+      setIsRetrying(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+    try {
+      const data = await listAdminDocuments();
+      setDocuments(data.map(mapDocument));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể tải danh sách tài liệu hệ thống");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDocuments();
+  }, [loadDocuments]);
+
+  const uniqueUsers = useMemo(
+    () => Array.from(new Set(documents.map((d) => d.user))),
+    [documents],
+  );
+  const uniqueProfiles = useMemo(
+    () => Array.from(new Set(documents.map((d) => d.profile))),
+    [documents],
+  );
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch = doc.name
@@ -102,8 +105,17 @@ const AdminDocuments = () => {
     return matchesSearch && matchesUser && matchesProfile && matchesStatus;
   });
 
-  const handleDelete = (id: string) => {
-    setDocuments(documents.filter((d) => d.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAdminDocument(id);
+      setDocuments((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể xóa tài liệu");
+      }
+    }
   };
 
   const getStatusColor = (status: AdminDocument["status"]) => {
@@ -115,6 +127,7 @@ const AdminDocuments = () => {
       case "PARSING":
       case "CHUNKING":
       case "INDEXING":
+      case "UPLOADED":
         return "bg-amber-100/20 text-amber-700 dark:text-amber-400";
       default:
         return "bg-blue-100/20 text-blue-700 dark:text-blue-400";
@@ -129,6 +142,8 @@ const AdminDocuments = () => {
         return "Đang chia nhỏ";
       case "INDEXING":
         return "Đang lập chỉ mục";
+      case "UPLOADED":
+        return "Đã tải lên";
       case "READY":
         return "Sẵn sàng";
       case "FAILED":
@@ -157,10 +172,27 @@ const AdminDocuments = () => {
         </div>
 
         {/* Statistics */}
+        {isLoading && (
+          <>
+            <StatCardsSkeleton count={4} />
+            <TableSkeleton />
+          </>
+        )}
+
+        {error && (
+          <ApiErrorState
+            message={error}
+            onRetry={() => void loadDocuments(true)}
+            isRetrying={isRetrying}
+          />
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-lg border border-border bg-card/50">
             <p className="text-sm text-muted-foreground mb-1">Tổng tài liệu</p>
-            <p className="text-3xl font-display font-bold">{documents.length}</p>
+            <p className="text-3xl font-display font-bold">
+              {documents.length}
+            </p>
           </div>
           <div className="p-4 rounded-lg border border-border bg-card/50">
             <p className="text-sm text-muted-foreground mb-1">Sẵn sàng</p>
@@ -175,7 +207,9 @@ const AdminDocuments = () => {
             </p>
           </div>
           <div className="p-4 rounded-lg border border-border bg-card/50">
-            <p className="text-sm text-muted-foreground mb-1">Dung lượng tổng</p>
+            <p className="text-sm text-muted-foreground mb-1">
+              Dung lượng tổng
+            </p>
             <p className="text-3xl font-display font-bold">
               {totalSize.toFixed(1)} MB
             </p>
@@ -342,7 +376,7 @@ const AdminDocuments = () => {
                       <td className="px-6 py-4">
                         <div
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                            doc.status
+                            doc.status,
                           )}`}
                         >
                           {doc.status === "READY" && (

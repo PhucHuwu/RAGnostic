@@ -1,9 +1,14 @@
-import { useState } from "react";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import { Save, AlertCircle, CheckCircle } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
+import { ApiError, getModelConfig, updateModelConfig } from "@/lib/api";
+import { ApiErrorState } from "@/components/common/api-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ModelConfig {
-  provider: "openai" | "anthropic" | "google" | "local";
+  provider: string;
   modelName: string;
   temperature: number;
   maxTokens: number;
@@ -14,22 +19,60 @@ interface ModelConfig {
 
 const AdminModel = () => {
   const [config, setConfig] = useState<ModelConfig>({
-    provider: "openai",
-    modelName: "gpt-4",
-    temperature: 0.7,
+    provider: "openrouter",
+    modelName: "nvidia/nemotron-3-super-120b-a12b:free",
+    temperature: 0.2,
     maxTokens: 2048,
-    topP: 0.9,
-    frequencyPenalty: 0.5,
-    presencePenalty: 0.5,
+    topP: 1,
+    frequencyPenalty: 0,
+    presencePenalty: 0,
   });
 
   const [changes, setChanges] = useState<Partial<ModelConfig>>({});
   const [showModal, setShowModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const loadConfig = useCallback(async (isManualRetry = false) => {
+    if (isManualRetry) {
+      setIsRetrying(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+    try {
+      const response = await getModelConfig();
+      const params = response.params ?? {};
+      setConfig({
+        provider: response.provider,
+        modelName: response.model_name,
+        temperature: Number(params.temperature ?? 0.2),
+        maxTokens: Number(params.max_tokens ?? 2048),
+        topP: Number(params.top_p ?? 1),
+        frequencyPenalty: Number(params.frequency_penalty ?? 0),
+        presencePenalty: Number(params.presence_penalty ?? 0),
+      });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể tải cấu hình model");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
 
   const handleInputChange = (
     field: keyof ModelConfig,
-    value: string | number
+    value: string | number,
   ) => {
     const newValue =
       typeof config[field] === "number" ? parseFloat(String(value)) : value;
@@ -43,15 +86,37 @@ const AdminModel = () => {
     setShowModal(true);
   };
 
-  const handleConfirmSave = () => {
-    setConfig({
+  const handleConfirmSave = async () => {
+    const nextConfig = {
       ...config,
       ...changes,
-    });
-    setChanges({});
-    setShowModal(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    };
+
+    try {
+      await updateModelConfig({
+        provider: nextConfig.provider,
+        model_name: nextConfig.modelName,
+        params: {
+          temperature: nextConfig.temperature,
+          max_tokens: nextConfig.maxTokens,
+          top_p: nextConfig.topP,
+          frequency_penalty: nextConfig.frequencyPenalty,
+          presence_penalty: nextConfig.presencePenalty,
+        },
+      });
+      setConfig(nextConfig);
+      setChanges({});
+      setShowModal(false);
+      setSaveSuccess(true);
+      setError(null);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể lưu cấu hình model");
+      }
+    }
   };
 
   const hasChanges = Object.keys(changes).length > 0;
@@ -68,6 +133,22 @@ const AdminModel = () => {
             Quản lý cấu hình AI model cho toàn bộ hệ thống
           </p>
         </div>
+
+        {isLoading && (
+          <div className="p-4 rounded-lg bg-card border border-border space-y-3">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-64" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        )}
+
+        {error && (
+          <ApiErrorState
+            message={error}
+            onRetry={() => void loadConfig(true)}
+            isRetrying={isRetrying}
+          />
+        )}
 
         {/* Success Message */}
         {saveSuccess && (
@@ -152,11 +233,12 @@ const AdminModel = () => {
                   onChange={(e) =>
                     handleInputChange(
                       "provider",
-                      e.target.value as ModelConfig["provider"]
+                      e.target.value as ModelConfig["provider"],
                     )
                   }
                   className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
+                  <option value="openrouter">OpenRouter</option>
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic (Claude)</option>
                   <option value="google">Google (Gemini)</option>
@@ -203,7 +285,8 @@ const AdminModel = () => {
                   className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Kiểm soát tính sáng tạo của mô hình (0 = xác định, 2 = sáng tạo)
+                  Kiểm soát tính sáng tạo của mô hình (0 = xác định, 2 = sáng
+                  tạo)
                 </p>
               </div>
 
@@ -251,7 +334,8 @@ const AdminModel = () => {
               {/* Frequency Penalty */}
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-3">
-                  Frequency Penalty: {changes.frequencyPenalty ?? config.frequencyPenalty}
+                  Frequency Penalty:{" "}
+                  {changes.frequencyPenalty ?? config.frequencyPenalty}
                 </label>
                 <input
                   type="range"
@@ -262,7 +346,7 @@ const AdminModel = () => {
                   onChange={(e) =>
                     handleInputChange(
                       "frequencyPenalty",
-                      parseFloat(e.target.value)
+                      parseFloat(e.target.value),
                     )
                   }
                   className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
@@ -275,7 +359,8 @@ const AdminModel = () => {
               {/* Presence Penalty */}
               <div>
                 <label className="block text-sm font-semibold text-foreground mb-3">
-                  Presence Penalty: {changes.presencePenalty ?? config.presencePenalty}
+                  Presence Penalty:{" "}
+                  {changes.presencePenalty ?? config.presencePenalty}
                 </label>
                 <input
                   type="range"
@@ -286,7 +371,7 @@ const AdminModel = () => {
                   onChange={(e) =>
                     handleInputChange(
                       "presencePenalty",
-                      parseFloat(e.target.value)
+                      parseFloat(e.target.value),
                     )
                   }
                   className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"

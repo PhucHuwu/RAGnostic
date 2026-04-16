@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./client/**/*.{ts,tsx}"],
+  content: ["./app/**/*.{ts,tsx}", "./client/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
     container: {
@@ -27,7 +27,7 @@ export default {
         "body-lg": ["18px", { lineHeight: "28px" }],
         "body-md": ["16px", { lineHeight: "24px" }],
         "body-sm": ["14px", { lineHeight: "20px" }],
-        "caption": ["12px", { lineHeight: "18px" }],
+        caption: ["12px", { lineHeight: "18px" }],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -140,8 +140,10 @@ export default {
         xl: "24px",
       },
       backgroundImage: {
-        "gradient-ai": "linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #6366f1 100%)",
-        "gradient-subtle": "linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 136, 255, 0.05) 100%)",
+        "gradient-ai":
+          "linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #6366f1 100%)",
+        "gradient-subtle":
+          "linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 136, 255, 0.05) 100%)",
       },
     },
   },

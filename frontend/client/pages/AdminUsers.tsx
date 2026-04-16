@@ -1,6 +1,17 @@
-import { useState } from "react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, MoreVertical, Lock, Shield, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
+import {
+  updateAdminUserStatus,
+  ApiError,
+  listAdminUsers,
+  resetAdminUserPassword,
+  updateAdminUserRole,
+  type AdminUserResponse,
+} from "@/lib/api";
+import { ApiErrorState, TableSkeleton } from "@/components/common/api-state";
 
 interface User {
   id: string;
@@ -12,63 +23,31 @@ interface User {
   createdAt: string;
 }
 
+function mapUser(user: AdminUserResponse): User {
+  const mapStatus = {
+    ACTIVE: "active",
+    LOCKED: "suspended",
+    DISABLED: "inactive",
+  } as const;
+
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email ?? "N/A",
+    role: user.role,
+    status: mapStatus[user.status],
+    lastLogin: user.last_login_at
+      ? new Date(user.last_login_at).toLocaleString("vi-VN")
+      : "Chưa đăng nhập",
+    createdAt: new Date(user.created_at).toLocaleDateString("vi-VN"),
+  };
+}
+
 const AdminUsers = () => {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      username: "admin_user",
-      email: "admin@ragnostic.io",
-      role: "ADMIN",
-      status: "active",
-      lastLogin: "2024-01-28 14:30",
-      createdAt: "2024-01-01",
-    },
-    {
-      id: "2",
-      username: "john_doe",
-      email: "john@example.com",
-      role: "USER",
-      status: "active",
-      lastLogin: "2024-01-28 10:15",
-      createdAt: "2024-01-10",
-    },
-    {
-      id: "3",
-      username: "jane_smith",
-      email: "jane@example.com",
-      role: "USER",
-      status: "active",
-      lastLogin: "2024-01-27 09:45",
-      createdAt: "2024-01-12",
-    },
-    {
-      id: "4",
-      username: "bob_wilson",
-      email: "bob@example.com",
-      role: "USER",
-      status: "inactive",
-      lastLogin: "2024-01-15 16:20",
-      createdAt: "2024-01-15",
-    },
-    {
-      id: "5",
-      username: "alice_brown",
-      email: "alice@example.com",
-      role: "ADMIN",
-      status: "active",
-      lastLogin: "2024-01-28 11:00",
-      createdAt: "2024-01-05",
-    },
-    {
-      id: "6",
-      username: "charlie_davis",
-      email: "charlie@example.com",
-      role: "USER",
-      status: "suspended",
-      lastLogin: "2024-01-20 13:30",
-      createdAt: "2024-01-18",
-    },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"" | "ADMIN" | "USER">("");
@@ -81,18 +60,60 @@ const AdminUsers = () => {
     "change-role" | "change-status" | "reset-password" | "delete"
   >("change-role");
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = !roleFilter || user.role === roleFilter;
-    const matchesStatus = !statusFilter || user.status === statusFilter;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const nextStatus = (status: User["status"]): User["status"] => {
+    if (status === "active") return "suspended";
+    if (status === "suspended") return "inactive";
+    return "active";
+  };
+
+  const toApiStatus = (status: User["status"]) => {
+    if (status === "active") return "ACTIVE" as const;
+    if (status === "suspended") return "LOCKED" as const;
+    return "DISABLED" as const;
+  };
+
+  const loadUsers = useCallback(async (isManualRetry = false) => {
+    if (isManualRetry) {
+      setIsRetrying(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+    try {
+      const data = await listAdminUsers();
+      setUsers(data.map(mapUser));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể tải danh sách người dùng");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
+
+  const filteredUsers = useMemo(
+    () =>
+      users.filter((user) => {
+        const matchesSearch =
+          user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesRole = !roleFilter || user.role === roleFilter;
+        const matchesStatus = !statusFilter || user.status === statusFilter;
+        return matchesSearch && matchesRole && matchesStatus;
+      }),
+    [users, searchQuery, roleFilter, statusFilter],
+  );
 
   const handleOpenModal = (
     user: User,
-    action: "change-role" | "change-status" | "reset-password" | "delete"
+    action: "change-role" | "change-status" | "reset-password" | "delete",
   ) => {
     setSelectedUser(user);
     setModalAction(action);
@@ -102,23 +123,50 @@ const AdminUsers = () => {
   const handleConfirmAction = () => {
     if (!selectedUser) return;
 
-    if (modalAction === "change-role") {
-      setUsers(
-        users.map((u) =>
-          u.id === selectedUser.id
-            ? {
-                ...u,
-                role: u.role === "ADMIN" ? "USER" : "ADMIN",
-              }
-            : u
-        )
-      );
-    } else if (modalAction === "delete") {
-      setUsers(users.filter((u) => u.id !== selectedUser.id));
-    }
+    const run = async () => {
+      try {
+        if (modalAction === "change-role") {
+          const nextRole = selectedUser.role === "ADMIN" ? "USER" : "ADMIN";
+          await updateAdminUserRole(selectedUser.id, nextRole);
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === selectedUser.id
+                ? {
+                    ...u,
+                    role: nextRole,
+                  }
+                : u,
+            ),
+          );
+        } else if (modalAction === "reset-password") {
+          await resetAdminUserPassword(selectedUser.id, "123456");
+        } else if (modalAction === "change-status") {
+          const newStatus = nextStatus(selectedUser.status);
+          await updateAdminUserStatus(selectedUser.id, toApiStatus(newStatus));
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === selectedUser.id
+                ? {
+                    ...u,
+                    status: newStatus,
+                  }
+                : u,
+            ),
+          );
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Không thể thực hiện thao tác người dùng");
+        }
+      } finally {
+        setModalOpen(false);
+        setSelectedUser(null);
+      }
+    };
 
-    setModalOpen(false);
-    setSelectedUser(null);
+    void run();
   };
 
   const getStatusBadge = (status: User["status"]) => {
@@ -157,6 +205,16 @@ const AdminUsers = () => {
         </div>
 
         {/* Filters */}
+        {isLoading && <TableSkeleton />}
+
+        {error && (
+          <ApiErrorState
+            message={error}
+            onRetry={() => void loadUsers(true)}
+            isRetrying={isRetrying}
+          />
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
@@ -279,7 +337,7 @@ const AdminUsers = () => {
                       <td className="px-6 py-4">
                         <div
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(
-                            user.status
+                            user.status,
                           )}`}
                         >
                           {getStatusLabel(user.status)}
@@ -294,8 +352,19 @@ const AdminUsers = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() =>
-                              handleOpenModal(user, "change-role")
+                              handleOpenModal(user, "change-status")
                             }
+                            className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
+                            title="Đổi trạng thái"
+                          >
+                            {user.status === "active"
+                              ? "Tạm khóa"
+                              : user.status === "suspended"
+                                ? "Vô hiệu"
+                                : "Kích hoạt"}
+                          </button>
+                          <button
+                            onClick={() => handleOpenModal(user, "change-role")}
                             className="p-2 hover:bg-muted rounded-lg transition-colors"
                             title="Đổi vai trò"
                           >
@@ -331,12 +400,15 @@ const AdminUsers = () => {
             <div className="bg-card rounded-xl border border-border max-w-md w-full p-6 animate-fade-in">
               <h3 className="text-xl font-display font-bold mb-2 text-foreground">
                 {modalAction === "change-role" && "Đổi vai trò?"}
+                {modalAction === "change-status" && "Đổi trạng thái?"}
                 {modalAction === "reset-password" && "Reset mật khẩu?"}
                 {modalAction === "delete" && "Xóa người dùng?"}
               </h3>
               <p className="text-muted-foreground mb-6">
                 {modalAction === "change-role" &&
                   `Bạn sắp đổi vai trò của ${selectedUser.username} từ ${selectedUser.role} sang ${selectedUser.role === "ADMIN" ? "USER" : "ADMIN"}.`}
+                {modalAction === "change-status" &&
+                  `Bạn sắp đổi trạng thái của ${selectedUser.username} từ ${getStatusLabel(selectedUser.status)} sang ${getStatusLabel(nextStatus(selectedUser.status))}.`}
                 {modalAction === "reset-password" &&
                   `Mật khẩu mới sẽ được gửi tới email của ${selectedUser.username}.`}
                 {modalAction === "delete" &&

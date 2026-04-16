@@ -1,7 +1,30 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Plus, MessageSquare, FileText, Edit2, Trash2, Calendar, Zap } from "lucide-react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Plus,
+  MessageSquare,
+  FileText,
+  Edit2,
+  Trash2,
+  Calendar,
+  Zap,
+} from "lucide-react";
 import UserLayout from "@/components/layouts/UserLayout";
+import {
+  ApiErrorState,
+  StatCardsSkeleton,
+} from "@/components/common/api-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ApiError,
+  deleteProfile,
+  listChatSessions,
+  listDocuments,
+  listProfiles,
+  type ProfileResponse,
+} from "@/lib/api";
 
 interface Profile {
   id: string;
@@ -14,48 +37,89 @@ interface Profile {
   status: "ready" | "processing";
 }
 
-const AppProfiles = () => {
-  const [profiles, setProfiles] = useState<Profile[]>([
-    {
-      id: "1",
-      name: "Hỗ trợ Khách hàng",
-      topic: "FAQ & Hỗ trợ",
-      description:
-        "Chatbot trả lời các câu hỏi thường gặp về sản phẩm và dịch vụ của công ty.",
-      documentsCount: 15,
-      sessionsCount: 342,
-      createdAt: "2024-01-15",
-      status: "ready",
-    },
-    {
-      id: "2",
-      name: "Tư vấn Tài chính",
-      topic: "Tài chính & Đầu tư",
-      description:
-        "Cung cấp thông tin và tư vấn về các sản phẩm đầu tư và quản lý tài chính.",
-      documentsCount: 32,
-      sessionsCount: 189,
-      createdAt: "2024-01-20",
-      status: "ready",
-    },
-    {
-      id: "3",
-      name: "Huấn luyện Nhân sự",
-      topic: "Đào tạo & Phát triển",
-      description:
-        "Cung cấp tài liệu huấn luyện và hướng dẫn cho nhân viên mới.",
-      documentsCount: 28,
-      sessionsCount: 67,
-      createdAt: "2024-01-25",
-      status: "processing",
-    },
-  ]);
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("vi-VN");
+}
 
-  const handleDelete = (id: string) => {
-    setProfiles(profiles.filter((p) => p.id !== id));
+async function hydrateProfileStats(profiles: ProfileResponse[]) {
+  const mapped = await Promise.all(
+    profiles.map(async (profile) => {
+      const [documents, sessions] = await Promise.all([
+        listDocuments(profile.id).catch(() => []),
+        listChatSessions(profile.id).catch(() => []),
+      ]);
+      return {
+        id: profile.id,
+        name: profile.name,
+        topic: profile.topic,
+        description: profile.description ?? "Chưa có mô tả",
+        documentsCount: documents.length,
+        sessionsCount: sessions.length,
+        createdAt: profile.created_at,
+        status: profile.is_active
+          ? ("ready" as const)
+          : ("processing" as const),
+      };
+    }),
+  );
+
+  return mapped;
+}
+
+const AppProfiles = () => {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const loadProfiles = useCallback(async (isManualRetry = false) => {
+    if (isManualRetry) {
+      setIsRetrying(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+    try {
+      const data = await listProfiles();
+      const hydrated = await hydrateProfileStats(data);
+      setProfiles(hydrated);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể tải danh sách profile");
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProfiles();
+  }, [loadProfiles]);
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteProfile(id);
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể xóa profile");
+      }
+    }
   };
 
   const isEmpty = profiles.length === 0;
+  const totals = useMemo(
+    () => ({
+      documents: profiles.reduce((sum, p) => sum + p.documentsCount, 0),
+      sessions: profiles.reduce((sum, p) => sum + p.sessionsCount, 0),
+    }),
+    [profiles],
+  );
 
   return (
     <UserLayout>
@@ -71,7 +135,7 @@ const AppProfiles = () => {
             </p>
           </div>
           <Link
-            to="/app/profiles/new"
+            href="/app/profiles/new"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all hover:shadow-lg"
           >
             <Plus className="w-5 h-5" />
@@ -80,7 +144,30 @@ const AppProfiles = () => {
         </div>
 
         {/* Empty State */}
-        {isEmpty ? (
+        {isLoading ? (
+          <div className="space-y-6">
+            <StatCardsSkeleton />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 3 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-border bg-card p-6 space-y-3"
+                >
+                  <Skeleton className="h-5 w-36" />
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : error ? (
+          <ApiErrorState
+            message={error}
+            onRetry={() => void loadProfiles(true)}
+            isRetrying={isRetrying}
+          />
+        ) : isEmpty ? (
           <div className="flex items-center justify-center min-h-96 rounded-xl border-2 border-dashed border-border bg-card/50 p-8">
             <div className="text-center max-w-md">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
@@ -90,10 +177,11 @@ const AppProfiles = () => {
                 Chưa có profile nào
               </h3>
               <p className="text-muted-foreground mb-6">
-                Bắt đầu bằng cách tạo profile đầu tiên để khởi động một chatbot mới.
+                Bắt đầu bằng cách tạo profile đầu tiên để khởi động một chatbot
+                mới.
               </p>
               <Link
-                to="/app/profiles/new"
+                href="/app/profiles/new"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all"
               >
                 <Plus className="w-5 h-5" />
@@ -114,19 +202,15 @@ const AppProfiles = () => {
                 </p>
               </div>
               <div className="p-4 rounded-lg border border-border bg-card/50">
-                <p className="text-sm text-muted-foreground mb-1">
-                  Tài liệu
-                </p>
+                <p className="text-sm text-muted-foreground mb-1">Tài liệu</p>
                 <p className="text-3xl font-display font-bold">
-                  {profiles.reduce((sum, p) => sum + p.documentsCount, 0)}
+                  {totals.documents}
                 </p>
               </div>
               <div className="p-4 rounded-lg border border-border bg-card/50">
-                <p className="text-sm text-muted-foreground mb-1">
-                  Phiên Chat
-                </p>
+                <p className="text-sm text-muted-foreground mb-1">Phiên Chat</p>
                 <p className="text-3xl font-display font-bold">
-                  {profiles.reduce((sum, p) => sum + p.sessionsCount, 0)}
+                  {totals.sessions}
                 </p>
               </div>
             </div>
@@ -176,28 +260,28 @@ const AppProfiles = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Calendar className="w-4 h-4" />
-                      <span>{new Date(profile.createdAt).toLocaleDateString("vi-VN")}</span>
+                      <span>{formatDate(profile.createdAt)}</span>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="p-4 flex gap-2">
                     <Link
-                      to={`/app/profiles/${profile.id}/chat`}
+                      href={`/app/profiles/${profile.id}/chat`}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
                     >
                       <MessageSquare className="w-4 h-4" />
                       Chat
                     </Link>
                     <Link
-                      to={`/app/profiles/${profile.id}/documents`}
+                      href={`/app/profiles/${profile.id}/documents`}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground text-sm font-semibold hover:bg-muted/50 transition-colors"
                     >
                       <FileText className="w-4 h-4" />
                       Tài liệu
                     </Link>
                     <Link
-                      to={`/app/profiles/${profile.id}`}
+                      href={`/app/profiles/${profile.id}`}
                       className="p-2 rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors"
                       title="Chỉnh sửa"
                     >

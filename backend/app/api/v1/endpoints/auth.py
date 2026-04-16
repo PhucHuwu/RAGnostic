@@ -16,6 +16,7 @@ from app.core.security import AuthTokenType, create_token, verify_password
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
+    RegisterRequest,
     TokenLogoutRequest,
     TokenRefreshRequest,
     TokenRefreshResponse,
@@ -24,6 +25,29 @@ from app.schemas.auth import (
 from app.services.store import store
 
 router = APIRouter()
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+def register(
+    payload: RegisterRequest, request: Request, client_ip: ClientIP, db: DbSession
+) -> UserInfo:
+    enforce_auth_rate_limit(f"register:{client_ip}")
+    try:
+        user = store.create_user(
+            db,
+            username=payload.username,
+            password=payload.password,
+            email=payload.email,
+        )
+    except ValueError:
+        raise_api_error(
+            request,
+            status.HTTP_409_CONFLICT,
+            "USERNAME_EXISTS",
+            "Username already exists",
+        )
+
+    return UserInfo(id=user.id, username=user.username, role=user.role)
 
 
 @router.post("/login")

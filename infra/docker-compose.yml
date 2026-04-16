@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ragnostic
       POSTGRES_PASSWORD: ragnostic
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d
@@ -16,7 +16,7 @@ services:
     image: redis:7-alpine
     container_name: ragnostic-redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
 

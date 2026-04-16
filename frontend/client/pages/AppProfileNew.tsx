@@ -1,10 +1,147 @@
-import Placeholder from "./Placeholder";
+"use client";
 
-const AppProfileNew = () => (
-  <Placeholder
-    title="Tạo Profile mới"
-    description="Trang này sẽ cung cấp biểu mẫu để tạo profile chatbot mới với cấu hình chi tiết."
-  />
-);
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
+import UserLayout from "@/components/layouts/UserLayout";
+import { ApiError, createProfile } from "@/lib/api";
+
+const AppProfileNew = () => {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [topic, setTopic] = useState("");
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !topic.trim()) {
+      setError("Tên profile và chủ đề là bắt buộc");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const created = await createProfile({
+        name: name.trim(),
+        topic: topic.trim(),
+        description: description.trim() || undefined,
+      });
+      router.push(`/app/profiles/${created.id}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể tạo profile mới");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <UserLayout>
+      <div className="max-w-3xl space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground mb-2">
+              Tạo Profile mới
+            </h1>
+            <p className="text-muted-foreground">
+              Tạo chatbot profile để cấu hình dữ liệu và trò chuyện theo domain.
+            </p>
+          </div>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Quay lại
+          </button>
+        </div>
+
+        {error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <p className="text-sm text-destructive font-medium">{error}</p>
+          </div>
+        )}
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6 rounded-xl border border-border bg-card p-6"
+        >
+          <div>
+            <label
+              htmlFor="name"
+              className="block text-sm font-semibold text-foreground mb-2"
+            >
+              Tên profile
+            </label>
+            <input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ví dụ: Hỗ trợ khách hàng"
+              maxLength={120}
+              className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="topic"
+              className="block text-sm font-semibold text-foreground mb-2"
+            >
+              Chủ đề
+            </label>
+            <input
+              id="topic"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Ví dụ: FAQ và tài liệu sản phẩm"
+              maxLength={240}
+              className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="description"
+              className="block text-sm font-semibold text-foreground mb-2"
+            >
+              Mô tả
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              maxLength={2000}
+              placeholder="Mô tả mục tiêu, phạm vi dữ liệu và cách profile này nên trả lời"
+              className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Tạo profile
+            </button>
+          </div>
+        </form>
+      </div>
+    </UserLayout>
+  );
+};
 
 export default AppProfileNew;

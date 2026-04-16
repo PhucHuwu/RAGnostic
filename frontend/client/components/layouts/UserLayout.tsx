@@ -1,22 +1,51 @@
-import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Brain, Briefcase, FileText, LogOut, Settings, Home } from "lucide-react";
+"use client";
+
+import { ReactNode, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Brain,
+  Briefcase,
+  FileText,
+  LogOut,
+  Settings,
+  Home,
+} from "lucide-react";
+import { logout } from "@/lib/api";
+import { clearAuthSession } from "@/lib/auth";
 
 interface UserLayoutProps {
   children: ReactNode;
 }
 
 const UserLayout = ({ children }: UserLayoutProps) => {
-  const location = useLocation();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const isActive = (path: string) => location.pathname.startsWith(path);
+  const isActive = (path: string) => pathname.startsWith(path);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+    } finally {
+      clearAuthSession();
+      router.push("/login");
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border p-6 overflow-y-auto">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-3 mb-12">
+        <Link href="/" className="flex items-center gap-3 mb-12">
           <div className="w-10 h-10 rounded-lg bg-gradient-ai flex items-center justify-center">
             <Brain className="w-6 h-6 text-white" />
           </div>
@@ -28,13 +57,13 @@ const UserLayout = ({ children }: UserLayoutProps) => {
         {/* Navigation */}
         <nav className="space-y-2">
           <NavLink
-            to="/app/profiles"
+            href="/app/profiles"
             icon={<Briefcase className="w-5 h-5" />}
             label="Profiles"
             active={isActive("/app/profiles")}
           />
           <NavLink
-            to="/app/profiles/new"
+            href="/app/profiles/new"
             icon={<FileText className="w-5 h-5" />}
             label="Tạo Profile"
             active={isActive("/app/profiles/new")}
@@ -47,9 +76,13 @@ const UserLayout = ({ children }: UserLayoutProps) => {
             <Settings className="w-5 h-5" />
             <span>Cài đặt</span>
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-destructive/10 transition-colors">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          >
             <LogOut className="w-5 h-5" />
-            <span>Đăng xuất</span>
+            <span>{isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
           </button>
         </div>
       </aside>
@@ -71,24 +104,22 @@ const UserLayout = ({ children }: UserLayoutProps) => {
         </header>
 
         {/* Page Content */}
-        <main className="min-h-[calc(100vh-64px)] p-8">
-          {children}
-        </main>
+        <main className="min-h-[calc(100vh-64px)] p-8">{children}</main>
       </div>
     </div>
   );
 };
 
 interface NavLinkProps {
-  to: string;
+  href: string;
   icon: ReactNode;
   label: string;
   active: boolean;
 }
 
-const NavLink = ({ to, icon, label, active }: NavLinkProps) => (
+const NavLink = ({ href, icon, label, active }: NavLinkProps) => (
   <Link
-    to={to}
+    href={href}
     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
       active
         ? "bg-sidebar-primary text-sidebar-primary-foreground"

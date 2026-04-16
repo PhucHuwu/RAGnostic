@@ -1,6 +1,10 @@
-import { useState, useEffect, useRef } from "react";
-import { Search, Pause, Play, Trash2, Download } from "lucide-react";
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Search, Pause, Play, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
+import { ApiError, searchLogs } from "@/lib/api";
+import { ApiErrorState, TableSkeleton } from "@/components/common/api-state";
 
 interface LogEntry {
   id: string;
@@ -14,85 +18,21 @@ interface LogEntry {
 }
 
 const AdminLogs = () => {
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      id: "1",
-      timestamp: "2024-01-28 14:32:45",
-      level: "INFO",
-      service: "chat-service",
-      message: "User john_doe started a new chat session",
-      userId: "2",
-      sessionId: "sess_12345",
-      requestId: "req_abc123",
-    },
-    {
-      id: "2",
-      timestamp: "2024-01-28 14:32:46",
-      level: "DEBUG",
-      service: "document-processor",
-      message: "Processing document: Hướng dẫn sử dụng sản phẩm.pdf",
-      requestId: "req_abc124",
-    },
-    {
-      id: "3",
-      timestamp: "2024-01-28 14:32:48",
-      level: "INFO",
-      service: "indexing-service",
-      message: "Document indexed successfully with 42 chunks",
-      requestId: "req_abc124",
-    },
-    {
-      id: "4",
-      timestamp: "2024-01-28 14:32:50",
-      level: "WARN",
-      service: "chat-service",
-      message: "High latency detected: response time 2.5s",
-      sessionId: "sess_12345",
-      requestId: "req_abc125",
-    },
-    {
-      id: "5",
-      timestamp: "2024-01-28 14:32:52",
-      level: "INFO",
-      service: "auth-service",
-      message: "User jane_smith logged in",
-      userId: "3",
-      requestId: "req_abc126",
-    },
-    {
-      id: "6",
-      timestamp: "2024-01-28 14:32:55",
-      level: "ERROR",
-      service: "document-processor",
-      message: "Failed to parse file: corrupted PDF format",
-      requestId: "req_abc127",
-    },
-    {
-      id: "7",
-      timestamp: "2024-01-28 14:32:58",
-      level: "DEBUG",
-      service: "cache-service",
-      message: "Cache hit for query: gpt-4 embeddings",
-      requestId: "req_abc128",
-    },
-    {
-      id: "8",
-      timestamp: "2024-01-28 14:33:00",
-      level: "INFO",
-      service: "api-gateway",
-      message: "Request quota: 450/1000 used today",
-      requestId: "req_abc129",
-    },
-  ]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const [isPaused, setIsPaused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [levelFilter, setLevelFilter] = useState<"" | "INFO" | "WARN" | "ERROR" | "DEBUG">("");
+  const [levelFilter, setLevelFilter] = useState<
+    "" | "INFO" | "WARN" | "ERROR" | "DEBUG"
+  >("");
   const [serviceFilter, setServiceFilter] = useState("");
   const [quickSearch, setQuickSearch] = useState("");
-  const [quickSearchType, setQuickSearchType] = useState<"requestId" | "userId" | "sessionId">(
-    "requestId"
-  );
+  const [quickSearchType, setQuickSearchType] = useState<
+    "requestId" | "userId" | "sessionId"
+  >("requestId");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -105,46 +45,74 @@ const AdminLogs = () => {
     }
   }, [logs, isPaused]);
 
-  // Simulate realtime logs
+  const loadLogs = useCallback(
+    async (isManualRetry = false) => {
+      if (isPaused) {
+        return;
+      }
+
+      if (isManualRetry) {
+        setIsRetrying(true);
+      } else {
+        setIsLoading(true);
+      }
+      setError(null);
+      try {
+        const response = await searchLogs({
+          level: levelFilter || undefined,
+          service: serviceFilter || undefined,
+          q: searchQuery || undefined,
+          request_id:
+            quickSearchType === "requestId"
+              ? quickSearch || undefined
+              : undefined,
+          user_id:
+            quickSearchType === "userId" ? quickSearch || undefined : undefined,
+          session_id:
+            quickSearchType === "sessionId"
+              ? quickSearch || undefined
+              : undefined,
+        });
+
+        setLogs(
+          response.items.map((item, index) => ({
+            id: `${item.timestamp}-${index}`,
+            timestamp: new Date(item.timestamp).toLocaleString("vi-VN"),
+            level:
+              item.level === "WARNING"
+                ? "WARN"
+                : (item.level as LogEntry["level"]),
+            service: item.service,
+            message: item.message,
+            requestId: item.request_id ?? undefined,
+            userId: item.user_id ?? undefined,
+            sessionId: item.session_id ?? undefined,
+          })),
+        );
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError("Không thể tải log hệ thống");
+        }
+      } finally {
+        setIsLoading(false);
+        setIsRetrying(false);
+      }
+    },
+    [
+      isPaused,
+      levelFilter,
+      serviceFilter,
+      searchQuery,
+      quickSearch,
+      quickSearchType,
+    ],
+  );
+
   useEffect(() => {
-    if (isPaused) return;
-
-    const interval = setInterval(() => {
-      const newLog: LogEntry = {
-        id: String(logs.length + 1),
-        timestamp: new Date().toLocaleTimeString("vi-VN", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        level: ["INFO", "WARN", "ERROR", "DEBUG"][
-          Math.floor(Math.random() * 4)
-        ] as LogEntry["level"],
-        service: [
-          "chat-service",
-          "document-processor",
-          "indexing-service",
-          "auth-service",
-          "api-gateway",
-        ][Math.floor(Math.random() * 5)],
-        message: [
-          "Processing request...",
-          "User interaction detected",
-          "Cache updated",
-          "Data synchronized",
-          "Background job completed",
-        ][Math.floor(Math.random() * 5)],
-        requestId: `req_${Math.random().toString(36).substr(2, 6)}`,
-      };
-
-      setLogs((prev) => [...prev, newLog]);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [isPaused, logs.length]);
+    void loadLogs();
+  }, [loadLogs]);
 
   const uniqueServices = Array.from(new Set(logs.map((log) => log.service)));
 
@@ -159,8 +127,7 @@ const AdminLogs = () => {
       (quickSearchType === "requestId" &&
         log.requestId?.includes(quickSearch)) ||
       (quickSearchType === "userId" && log.userId?.includes(quickSearch)) ||
-      (quickSearchType === "sessionId" &&
-        log.sessionId?.includes(quickSearch));
+      (quickSearchType === "sessionId" && log.sessionId?.includes(quickSearch));
 
     return (
       matchesSearch && matchesLevel && matchesService && matchesQuickSearch
@@ -207,6 +174,16 @@ const AdminLogs = () => {
         </div>
 
         {/* Filters */}
+        {isLoading && <TableSkeleton />}
+
+        {error && (
+          <ApiErrorState
+            message={error}
+            onRetry={() => void loadLogs(true)}
+            isRetrying={isRetrying}
+          />
+        )}
+
         <div className="space-y-4">
           {/* Main Filters */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -293,7 +270,7 @@ const AdminLogs = () => {
                 value={quickSearchType}
                 onChange={(e) =>
                   setQuickSearchType(
-                    e.target.value as "requestId" | "userId" | "sessionId"
+                    e.target.value as "requestId" | "userId" | "sessionId",
                   )
                 }
                 className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
@@ -352,7 +329,7 @@ const AdminLogs = () => {
                   <div
                     key={log.id}
                     className={`p-2 rounded transition-colors ${getLogBgColor(
-                      log.level
+                      log.level,
                     )} cursor-pointer group hover:bg-muted/20`}
                   >
                     <div className="flex gap-4">
@@ -361,7 +338,7 @@ const AdminLogs = () => {
                       </span>
                       <span
                         className={`font-bold flex-shrink-0 w-12 ${getLogColor(
-                          log.level
+                          log.level,
                         )}`}
                       >
                         [{log.level}]
@@ -380,7 +357,9 @@ const AdminLogs = () => {
                       <div className="ml-32 text-muted-foreground text-xs mt-1">
                         {log.userId && <span>userId: {log.userId}</span>}
                         {log.userId && log.sessionId && <span> | </span>}
-                        {log.sessionId && <span>sessionId: {log.sessionId}</span>}
+                        {log.sessionId && (
+                          <span>sessionId: {log.sessionId}</span>
+                        )}
                       </div>
                     )}
                   </div>
