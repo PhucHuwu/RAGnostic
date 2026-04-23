@@ -313,7 +313,7 @@ def _chunk_ordered_blocks(
 
 
 def _tokenize(text: str) -> set[str]:
-    return set(re.findall(r"[a-zA-Z0-9_]+", text.lower()))
+    return set(re.findall(r"\w+", text.lower(), flags=re.UNICODE))
 
 
 def _split_by_chars(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:

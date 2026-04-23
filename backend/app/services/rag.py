@@ -10,7 +10,7 @@ from app.core.config import settings
 
 
 def _tokenize(text: str) -> list[str]:
-    return re.findall(r"[a-zA-Z0-9_]+", text.lower())
+    return re.findall(r"\w+", text.lower(), flags=re.UNICODE)
 
 
 def compute_embedding(text: str, dim: int | None = None) -> list[float]:
@@ -58,7 +58,7 @@ def retrieve_context(query: str, chunks: list[dict], top_k: int) -> list[dict]:
         overlap = len(query_tokens.intersection(chunk_tokens))
         lexical_score = overlap / max(1, len(query_tokens))
         vec_score = _cosine_similarity(query_vec, _normalize_vector(chunk.get("embedding_vector")))
-        hybrid = (0.7 * vec_score) + (0.3 * lexical_score)
+        hybrid = (0.4 * vec_score) + (0.6 * lexical_score)
         scored.append(
             {
                 "chunk_id": chunk["chunk_id"],
@@ -103,7 +103,7 @@ def merge_vector_and_lexical_results(
         item = dict(candidate)
         item.setdefault("lexical_score", 0.0)
         item.setdefault("vector_score", candidate.get("score", 0.0))
-        item["score"] = (0.8 * item["vector_score"]) + (0.2 * item["lexical_score"])
+        item["score"] = (0.5 * item["vector_score"]) + (0.5 * item["lexical_score"])
         merged[item["chunk_id"]] = item
 
     for candidate in lexical_candidates:
@@ -111,8 +111,8 @@ def merge_vector_and_lexical_results(
         lexical_score = candidate.get("score", 0.0)
         if chunk_id in merged:
             merged[chunk_id]["lexical_score"] = max(merged[chunk_id]["lexical_score"], lexical_score)
-            merged[chunk_id]["score"] = (0.8 * merged[chunk_id]["vector_score"]) + (
-                0.2 * merged[chunk_id]["lexical_score"]
+            merged[chunk_id]["score"] = (0.5 * merged[chunk_id]["vector_score"]) + (
+                0.5 * merged[chunk_id]["lexical_score"]
             )
         else:
             content = candidate.get("content", "")
@@ -123,7 +123,7 @@ def merge_vector_and_lexical_results(
                 **candidate,
                 "vector_score": 0.0,
                 "lexical_score": lexical_score,
-                "score": (0.8 * 0.0) + (0.2 * lexical_score) + (0.01 * overlap),
+                "score": (0.5 * 0.0) + (0.5 * lexical_score) + (0.01 * overlap),
             }
 
     items = list(merged.values())
@@ -255,8 +255,9 @@ def build_assistant_answer(
             {
                 "role": "system",
                 "content": (
-                    "You are an assistant for RAG QA. Use retrieved context first and answer in Markdown. "
-                    "If context is insufficient, say what is missing. Keep answer concise and cite chunk ids."
+                    "You are an assistant for RAG QA. Use the retrieved context first and answer in Markdown. "
+                    "Prefer best-effort synthesis from available chunks; do not refuse unless there is truly no related evidence. "
+                    "When uncertain, state assumptions briefly and cite chunk ids used."
                 ),
             },
             {

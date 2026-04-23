@@ -159,11 +159,12 @@ def send_message(
     ]
     if retrieval_chunks:
         query_embedding = compute_embedding(payload.content)
+        retrieval_pool = max(top_k * 4, rerank_top_n * 4, 20)
         vector_rows = store.search_chunks_by_vector(
             db,
             profile_id=session.profile_id,
             query_embedding=query_embedding,
-            top_k=max(top_k, rerank_top_n) * 2,
+            top_k=retrieval_pool,
         )
         vector_candidates = [
             {
@@ -180,13 +181,13 @@ def send_message(
         lexical_candidates = retrieve_context(
             payload.content,
             retrieval_chunks,
-            top_k=max(top_k, rerank_top_n) * 2,
+            top_k=retrieval_pool,
         )
         candidates = merge_vector_and_lexical_results(
             query=payload.content,
             vector_candidates=vector_candidates,
             lexical_candidates=lexical_candidates,
-            top_k=max(top_k, rerank_top_n) * 2,
+            top_k=retrieval_pool,
         )
         reranked = bm25_rerank(payload.content, candidates, rerank_top_n=rerank_top_n)
     else:
