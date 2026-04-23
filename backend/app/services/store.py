@@ -14,6 +14,9 @@ from app.models.db import (
     ChatMessageDB,
     ChatSessionDB,
     DocumentDB,
+    DocumentChunkDB,
+    DocumentParseResultDB,
+    MessageRetrievalTraceDB,
     SystemConfigDB,
     UserDB,
     UserSessionDB,
@@ -189,6 +192,87 @@ class DatabaseStore:
         db.refresh(doc)
         return doc
 
+    def update_document_status(
+        self,
+        db: Session,
+        document_id: str,
+        status: str,
+        error_message: str | None = None,
+    ) -> DocumentDB:
+        doc = db.get(DocumentDB, document_id)
+        if doc is None:
+            raise ValueError("Document not found")
+        doc.status = status
+        doc.error_message = error_message
+        doc.updated_at = _utcnow()
+        db.commit()
+        db.refresh(doc)
+        return doc
+
+    def upsert_parse_result(
+        self,
+        db: Session,
+        document_id: str,
+        structured_json_path: str,
+        summary: str | None,
+        metadata_json: dict,
+        parser_name: str = "docling",
+        parser_version: str = "mock-v1",
+    ) -> DocumentParseResultDB:
+        row = db.scalar(
+            select(DocumentParseResultDB).where(DocumentParseResultDB.document_id == document_id)
+        )
+        if row is None:
+            row = DocumentParseResultDB(
+                document_id=document_id,
+                parser_name=parser_name,
+                parser_version=parser_version,
+                structured_json_path=structured_json_path,
+                summary=summary,
+                metadata_json=metadata_json,
+            )
+            db.add(row)
+        else:
+            row.parser_name = parser_name
+            row.parser_version = parser_version
+            row.structured_json_path = structured_json_path
+            row.summary = summary
+            row.metadata_json = metadata_json
+            row.updated_at = _utcnow()
+        db.commit()
+        db.refresh(row)
+        return row
+
+    def replace_document_chunks(
+        self,
+        db: Session,
+        document_id: str,
+        profile_id: str,
+        chunks: list[dict],
+    ) -> list[DocumentChunkDB]:
+        db.query(DocumentChunkDB).filter(DocumentChunkDB.document_id == document_id).delete()
+        rows: list[DocumentChunkDB] = []
+        for idx, item in enumerate(chunks):
+            row = DocumentChunkDB(
+                document_id=document_id,
+                profile_id=profile_id,
+                chunk_index=idx,
+                content=item["content"],
+                token_count=item.get("token_count", 0),
+                char_count=item.get("char_count", len(item["content"])),
+                section_title=item.get("section_title"),
+                page_no=item.get("page_no"),
+                source_ref=item.get("source_ref"),
+                chunk_hash=item["chunk_hash"],
+                embedding_vector=item.get("embedding_vector"),
+            )
+            db.add(row)
+            rows.append(row)
+        db.commit()
+        for row in rows:
+            db.refresh(row)
+        return rows
+
     def list_documents_for_profile(self, db: Session, profile_id: str) -> list[DocumentDB]:
         stmt = select(DocumentDB).where(
             DocumentDB.profile_id == profile_id, DocumentDB.deleted.is_(False)
@@ -203,6 +287,23 @@ class DatabaseStore:
         if doc is None or doc.deleted:
             return None
         return doc
+
+    def get_parse_result(self, db: Session, document_id: str) -> DocumentParseResultDB | None:
+        return db.scalar(
+            select(DocumentParseResultDB).where(DocumentParseResultDB.document_id == document_id)
+        )
+
+    def list_chunks_for_document(self, db: Session, document_id: str) -> list[DocumentChunkDB]:
+        stmt = (
+            select(DocumentChunkDB)
+            .where(DocumentChunkDB.document_id == document_id)
+            .order_by(DocumentChunkDB.chunk_index.asc())
+        )
+        return list(db.scalars(stmt).all())
+
+    def count_chunks_for_document(self, db: Session, document_id: str) -> int:
+        stmt = select(func.count(DocumentChunkDB.id)).where(DocumentChunkDB.document_id == document_id)
+        return int(db.scalar(stmt) or 0)
 
     def soft_delete_document(self, db: Session, document_id: str) -> None:
         doc = db.get(DocumentDB, document_id)
@@ -279,6 +380,72 @@ class DatabaseStore:
             .order_by(ChatMessageDB.seq_no.asc())
         )
         return list(db.scalars(stmt).all())
+
+    def list_chunks_for_profile(self, db: Session, profile_id: str) -> list[DocumentChunkDB]:
+        stmt = (
+            select(DocumentChunkDB)
+            .join(DocumentDB, DocumentDB.id == DocumentChunkDB.document_id)
+            .where(
+                DocumentChunkDB.profile_id == profile_id,
+                DocumentDB.deleted.is_(False),
+                DocumentDB.status == "READY",
+            )
+            .order_by(DocumentChunkDB.created_at.asc())
+        )
+        return list(db.scalars(stmt).all())
+
+    def search_chunks_by_vector(
+        self,
+        db: Session,
+        *,
+        profile_id: str,
+        query_embedding: list[float],
+        top_k: int,
+    ) -> list[tuple[DocumentChunkDB, float]]:
+        stmt = (
+            select(
+                DocumentChunkDB,
+                DocumentChunkDB.embedding_vector.cosine_distance(query_embedding).label("distance"),
+            )
+            .join(DocumentDB, DocumentDB.id == DocumentChunkDB.document_id)
+            .where(
+                DocumentChunkDB.profile_id == profile_id,
+                DocumentChunkDB.embedding_vector.is_not(None),
+                DocumentDB.deleted.is_(False),
+                DocumentDB.status == "READY",
+            )
+            .order_by("distance")
+            .limit(max(1, top_k))
+        )
+        return list(db.execute(stmt).all())
+
+    def add_retrieval_trace(
+        self,
+        db: Session,
+        *,
+        message_id: str,
+        retrieval_query: str,
+        top_k: int,
+        rerank_top_n: int,
+        bm25_enabled: bool,
+        raw_candidates: list,
+        reranked_results: list,
+        citations: list,
+    ) -> MessageRetrievalTraceDB:
+        trace = MessageRetrievalTraceDB(
+            message_id=message_id,
+            retrieval_query=retrieval_query,
+            top_k=top_k,
+            rerank_top_n=rerank_top_n,
+            bm25_enabled=bm25_enabled,
+            raw_candidates_json=raw_candidates,
+            reranked_results_json=reranked_results,
+            citations_json=citations,
+        )
+        db.add(trace)
+        db.commit()
+        db.refresh(trace)
+        return trace
 
     def add_audit_log(
         self,

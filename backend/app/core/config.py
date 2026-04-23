@@ -23,10 +23,16 @@ class Settings(BaseSettings):
 
     memory_window: int = 10
 
+    openrouter_api_key: str = ""
     upload_max_size_bytes: int = 10 * 1024 * 1024
     upload_allowed_exts: tuple[str, ...] = ("pdf", "docx", "txt")
 
     openrouter_model: str = "nvidia/nemotron-3-super-120b-a12b:free"
+    openrouter_chat_completions_url: str = "https://openrouter.ai/api/v1/chat/completions"
+    openrouter_timeout_seconds: int = 45
+
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_dimensions: int = 1024
 
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]

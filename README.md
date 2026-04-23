@@ -1,112 +1,139 @@
 # RAGnostic
 
-Monorepo skeleton for a multi-tenant, domain-agnostic RAG platform based on project requirements in `docs/project.md` and `docs/system-design.md`.
+Monorepo cho hệ thống RAG đa tenant, bám theo yêu cầu trong `docs/project.md` và `docs/system-design.md`.
 
-## Architecture (MVP)
+## Kiến trúc MVP
 
-- `backend/`: FastAPI REST API (Auth, Profile, Documents, Chat, Admin APIs)
-- `worker/`: async ingest worker (parse -> chunk -> index pipeline)
-- `frontend/`: Next.js web app (landing page, chat UI, dashboards)
-- `bff/`: Express service for frontend integration needs
-- `infra/`: local development infra (`postgres`, `redis`, `minio`)
+- `backend/`: FastAPI API (`auth`, `profiles`, `documents`, `chat`, `admin`, `logs`)
+- `frontend/`: Next.js UI
+- `bff/`: Express BFF
+- `worker/`: ingest worker (khung, chưa bắt buộc để chạy local MVP hiện tại)
+- `infra/`: Docker Compose cho `postgres(pgvector)`, `redis`, `minio`
 
-## Quick start
+## Yêu cầu môi trường
 
-### Python version policy
+- Python `3.12.x`
+- Node.js `>= 20`
+- Docker + Docker Compose
 
-- Required Python version for this repo: `3.12.x`
-- If you use `pyenv`, install and activate from repo root:
+Nếu dùng `pyenv`:
 
 ```bash
 pyenv install 3.12.8
 pyenv local 3.12.8
 ```
 
-This repository includes `.python-version` to make local tooling pick Python 3.12 automatically.
+## Chạy dự án local (khuyến nghị)
 
-1. Copy environment file:
-
-```bash
-cp .env.example .env
-```
-
-2. Start local infrastructure:
+### 1) Khởi động hạ tầng
 
 ```bash
 docker compose -f infra/docker-compose.yml up -d
 ```
 
-3. Backend setup (Python + venv):
+Services mặc định:
+
+- Postgres (pgvector): `localhost:5435`
+- Redis: `localhost:6380`
+- MinIO API: `localhost:9000`
+- MinIO Console: `localhost:9001`
+
+### 2) Cấu hình backend
 
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-uvicorn app.main:app --reload --port 8000
+cp backend/.env.example backend/.env
 ```
 
-4. Frontend setup:
+Mở `backend/.env` và điền tối thiểu:
+
+- `OPENROUTER_API_KEY=<your_openrouter_key>`
+- `OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free`
+- `EMBEDDING_MODEL=BAAI/bge-m3`
+- `EMBEDDING_DIMENSIONS=1024`
+
+### 3) Cài backend + migrate DB
 
 ```bash
-cd frontend
+python3 -m venv backend/.venv
+source backend/.venv/bin/activate
+pip install -e backend/[dev]
+alembic -c backend/alembic.ini upgrade head
+```
+
+### 4) Chạy backend
+
+```bash
+uvicorn app.main:app --reload --port 8000 --app-dir backend
+```
+
+API base: `http://localhost:8000/api/v1`
+
+### 5) Cài và chạy frontend
+
+```bash
+cp frontend/.env.example frontend/.env.local
+npm --prefix frontend install
+npm --prefix frontend run dev
+```
+
+Frontend: `http://localhost:3000`
+
+Lưu ý: đảm bảo `frontend/.env.local` có:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+### 6) (Tuỳ chọn) Chạy BFF
+
+```bash
+npm --prefix bff install
+npm --prefix bff run dev
+```
+
+BFF health: `http://localhost:4000/health`
+
+## Smoke test nhanh (nên chạy)
+
+### Health/ready
+
+```bash
+curl -s http://localhost:8000/api/v1/health
+curl -s http://localhost:8000/api/v1/ready
+```
+
+### Login admin seed
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"123456"}'
+```
+
+Nếu login fail, kiểm tra lại migration và startup log của backend.
+
+## Luồng kiểm tra RAG tối thiểu
+
+1. Login lấy `access_token`
+2. Tạo profile: `POST /api/v1/profiles`
+3. Upload tài liệu `txt/pdf/docx`: `POST /api/v1/profiles/{profile_id}/documents/upload`
+4. Tạo session: `POST /api/v1/profiles/{profile_id}/sessions`
+5. Gửi câu hỏi: `POST /api/v1/sessions/{session_id}/messages`
+6. Kiểm tra `retrieval_trace` trong response có `raw_candidates`, `reranked_results`, `citations`
+
+## Lệnh chất lượng mã nguồn
+
+Tại root repo:
+
+```bash
 npm install
-npm run dev
+npm run lint
+npm run typecheck
+npm run format:check
 ```
 
-5. BFF setup:
+## Lưu ý quan trọng
 
-```bash
-cd bff
-npm install
-npm run dev
-```
-
-## API base
-
-- Base path: `/api/v1`
-- Health: `GET /api/v1/health`
-- Admin default seed (for init env): `admin/123456` (to be implemented in DB seed)
-
-## Logging standard
-
-Backend includes structured JSON logging with required fields:
-
-- `timestamp`
-- `level`
-- `service`
-- `event`
-- `message`
-- `request_id`
-- `session_id`
-- `user_id`
-- `metadata`
-
-## Code quality commands
-
-At repository root:
-
-```bash
-npm install
-```
-
-- Lint all: `npm run lint`
-- Typecheck all: `npm run typecheck`
-- Format all: `npm run format`
-- Check format only: `npm run format:check`
-
-Python tooling uses:
-
-- `ruff` for lint + formatter
-- `mypy` for type checking
-
-Node tooling uses:
-
-- `eslint` for lint
-- `typescript` for type checking
-- `prettier` for formatting
-
-## Notes
-
-- This commit initializes project skeleton only, no business logic yet.
-- API contracts and data model details are documented in `docs/system-design.md`.
+- Không commit file chứa secret (`backend/.env`, `frontend/.env.local`).
+- API key OpenRouter đã lộ phải rotate ngay trước khi dùng môi trường thật.
+- `worker/` hiện là khung; ingest MVP đang chạy trong backend upload flow.

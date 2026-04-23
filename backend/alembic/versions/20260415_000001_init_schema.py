@@ -7,6 +7,7 @@ Create Date: 2026-04-15 00:00:01
 
 from alembic import op
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector
 
 
 revision = "20260415_000001"
@@ -16,6 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+
     op.create_table(
         "users",
         sa.Column("id", sa.String(length=36), primary_key=True),
@@ -108,6 +111,62 @@ def upgrade() -> None:
     op.create_index("ix_documents_profile_id", "documents", ["profile_id"])
 
     op.create_table(
+        "document_parse_results",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column(
+            "document_id", sa.String(length=36), sa.ForeignKey("documents.id"), nullable=False
+        ),
+        sa.Column("parser_name", sa.String(length=120), nullable=False),
+        sa.Column("parser_version", sa.String(length=64), nullable=False),
+        sa.Column("structured_json_path", sa.String(length=512), nullable=False),
+        sa.Column("summary", sa.Text(), nullable=True),
+        sa.Column("metadata_json", sa.JSON(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.UniqueConstraint("document_id", name="uq_document_parse_results_document_id"),
+    )
+    op.create_index(
+        "ix_document_parse_results_document_id", "document_parse_results", ["document_id"]
+    )
+
+    op.create_table(
+        "document_chunks",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column(
+            "document_id", sa.String(length=36), sa.ForeignKey("documents.id"), nullable=False
+        ),
+        sa.Column(
+            "profile_id", sa.String(length=36), sa.ForeignKey("chatbot_profiles.id"), nullable=False
+        ),
+        sa.Column("chunk_index", sa.Integer(), nullable=False),
+        sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("token_count", sa.Integer(), nullable=False),
+        sa.Column("char_count", sa.Integer(), nullable=False),
+        sa.Column("section_title", sa.String(length=255), nullable=True),
+        sa.Column("page_no", sa.Integer(), nullable=True),
+        sa.Column("source_ref", sa.String(length=255), nullable=True),
+        sa.Column("chunk_hash", sa.String(length=64), nullable=False),
+        sa.Column("embedding_vector", Vector(dim=1024), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+    )
+    op.create_index("ix_document_chunks_document_id", "document_chunks", ["document_id"])
+    op.create_index("ix_document_chunks_profile_id", "document_chunks", ["profile_id"])
+    op.create_index("ix_document_chunks_chunk_hash", "document_chunks", ["chunk_hash"])
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_document_chunks_embedding_hnsw "
+        "ON document_chunks USING hnsw (embedding_vector vector_cosine_ops)"
+    )
+
+    op.create_table(
         "chat_sessions",
         sa.Column("id", sa.String(length=36), primary_key=True),
         sa.Column(
@@ -152,6 +211,27 @@ def upgrade() -> None:
     op.create_index("ix_chat_messages_session_id", "chat_messages", ["session_id"])
 
     op.create_table(
+        "message_retrieval_traces",
+        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column(
+            "message_id", sa.String(length=36), sa.ForeignKey("chat_messages.id"), nullable=False
+        ),
+        sa.Column("retrieval_query", sa.Text(), nullable=False),
+        sa.Column("top_k", sa.Integer(), nullable=False),
+        sa.Column("rerank_top_n", sa.Integer(), nullable=False),
+        sa.Column("bm25_enabled", sa.Boolean(), nullable=False),
+        sa.Column("raw_candidates_json", sa.JSON(), nullable=False),
+        sa.Column("reranked_results_json", sa.JSON(), nullable=False),
+        sa.Column("citations_json", sa.JSON(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+    )
+    op.create_index(
+        "ix_message_retrieval_traces_message_id", "message_retrieval_traces", ["message_id"]
+    )
+
+    op.create_table(
         "system_configs",
         sa.Column("config_key", sa.String(length=120), primary_key=True),
         sa.Column("value_json", sa.JSON(), nullable=False),
@@ -182,11 +262,20 @@ def downgrade() -> None:
     op.drop_index("ix_audit_logs_actor_user_id", table_name="audit_logs")
     op.drop_table("audit_logs")
     op.drop_table("system_configs")
+    op.drop_index("ix_message_retrieval_traces_message_id", table_name="message_retrieval_traces")
+    op.drop_table("message_retrieval_traces")
     op.drop_index("ix_chat_messages_session_id", table_name="chat_messages")
     op.drop_table("chat_messages")
     op.drop_index("ix_chat_sessions_user_id", table_name="chat_sessions")
     op.drop_index("ix_chat_sessions_profile_id", table_name="chat_sessions")
     op.drop_table("chat_sessions")
+    op.execute("DROP INDEX IF EXISTS ix_document_chunks_embedding_hnsw")
+    op.drop_index("ix_document_chunks_chunk_hash", table_name="document_chunks")
+    op.drop_index("ix_document_chunks_profile_id", table_name="document_chunks")
+    op.drop_index("ix_document_chunks_document_id", table_name="document_chunks")
+    op.drop_table("document_chunks")
+    op.drop_index("ix_document_parse_results_document_id", table_name="document_parse_results")
+    op.drop_table("document_parse_results")
     op.drop_index("ix_documents_profile_id", table_name="documents")
     op.drop_index("ix_documents_owner_user_id", table_name="documents")
     op.drop_table("documents")

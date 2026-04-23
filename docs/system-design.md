@@ -32,7 +32,7 @@ Tài liệu này mô tả chi tiết:
 - **Object Storage**: MinIO (lưu file gốc và artifact parse).
 - **Cache/Queue**: Redis (cache, trạng thái job, token/session hỗ trợ).
 - **LLM Provider**: OpenRouter, model mặc định `nvidia/nemotron-3-super-120b-a12b:free`.
-- **Document Parser**: DockLink (chuyển tài liệu phi cấu trúc thành JSON có cấu trúc).
+- **Document Parser**: Docling (https://www.docling.ai/) - chuyển tài liệu phi cấu trúc thành JSON có cấu trúc, hỗ trợ OCR, bảng, công thức, và thứ tự đọc.
 
 ### 2.2 Luồng dữ liệu tổng quát
 
@@ -161,7 +161,7 @@ Tài liệu này mô tả chi tiết:
 
 - `id` (UUID, PK)
 - `document_id` (FK -> `documents.id`, UNIQUE)
-- `parser_name` (vd: `docklink`)
+- `parser_name` (vd: `docling`)
 - `parser_version`
 - `structured_json_path` (đường dẫn artifact trên MinIO)
 - `summary`

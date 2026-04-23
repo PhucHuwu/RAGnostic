@@ -22,8 +22,11 @@ import {
 import {
   ApiError,
   deleteDocument,
+  getDocumentChunks,
   listDocuments,
+  previewDocument,
   uploadDocument,
+  type DocumentChunksResponse,
   type DocumentResponse,
 } from "@/lib/api";
 
@@ -36,6 +39,21 @@ interface Document {
   uploadedAt: string;
   status: "UPLOADED" | "PARSING" | "CHUNKING" | "INDEXING" | "READY" | "FAILED";
   progress?: number;
+  chunkCount: number;
+  errorMessage?: string | null;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
 const AppDocuments = () => {
@@ -45,6 +63,15 @@ const AppDocuments = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [chunkDebugTitle, setChunkDebugTitle] = useState<string | null>(null);
+  const [chunkDebugData, setChunkDebugData] =
+    useState<DocumentChunksResponse | null>(null);
+  const [chunkDebugError, setChunkDebugError] = useState<string | null>(null);
+  const [isChunkDebugLoading, setIsChunkDebugLoading] = useState(false);
 
   const [isDragActive, setIsDragActive] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
@@ -57,11 +84,13 @@ const AppDocuments = () => {
     id: doc.id,
     name: doc.file_name,
     format: doc.file_ext.toUpperCase(),
-    size: `${(doc.file_size_bytes / 1024 / 1024).toFixed(1)} MB`,
+    size: formatBytes(doc.file_size_bytes),
     sizeBytes: doc.file_size_bytes,
     uploadedAt: new Date(doc.uploaded_at).toLocaleDateString("vi-VN"),
     status: doc.status as Document["status"],
     progress: doc.status === "READY" ? 100 : undefined,
+    chunkCount: doc.chunk_count,
+    errorMessage: doc.error_message,
   });
 
   const loadDocuments = useCallback(
@@ -159,6 +188,46 @@ const AppDocuments = () => {
       } else {
         setError("Không thể xóa tài liệu");
       }
+    }
+  };
+
+  const handlePreview = async (doc: Document) => {
+    setIsPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewTitle(doc.name);
+    setPreviewText(null);
+
+    try {
+      const response = await previewDocument(doc.id);
+      setPreviewText(response.preview);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setPreviewError(err.message);
+      } else {
+        setPreviewError("Không thể tải nội dung xem trước tài liệu");
+      }
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const handleViewChunks = async (doc: Document) => {
+    setIsChunkDebugLoading(true);
+    setChunkDebugError(null);
+    setChunkDebugData(null);
+    setChunkDebugTitle(doc.name);
+
+    try {
+      const response = await getDocumentChunks(doc.id);
+      setChunkDebugData(response);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setChunkDebugError(err.message);
+      } else {
+        setChunkDebugError("Không thể tải chi tiết chunks");
+      }
+    } finally {
+      setIsChunkDebugLoading(false);
     }
   };
 
@@ -299,12 +368,7 @@ const AppDocuments = () => {
               Dung lượng tổng
             </p>
             <p className="text-3xl font-display font-bold">
-              {(
-                documents.reduce((sum, d) => sum + d.sizeBytes, 0) /
-                1024 /
-                1024
-              ).toFixed(1)}{" "}
-              MB
+              {formatBytes(documents.reduce((sum, d) => sum + d.sizeBytes, 0))}
             </p>
           </div>
         </div>
@@ -390,6 +454,19 @@ const AppDocuments = () => {
                             )}
                             {getStatusLabel(doc.status)}
                           </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary">
+                              chunks: {doc.chunkCount}
+                            </span>
+                            {doc.status === "FAILED" && doc.errorMessage && (
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100/30 text-red-700 max-w-[320px] truncate"
+                                title={doc.errorMessage}
+                              >
+                                ingest error: {doc.errorMessage}
+                              </span>
+                            )}
+                          </div>
                           {doc.progress !== undefined && doc.progress < 100 && (
                             <div className="w-32 h-1.5 bg-muted rounded-full overflow-hidden">
                               <div
@@ -409,12 +486,20 @@ const AppDocuments = () => {
                         <div className="flex items-center gap-2">
                           {doc.status === "READY" && (
                             <button
+                              onClick={() => void handlePreview(doc)}
                               className="p-2 hover:bg-muted rounded-lg transition-colors"
                               title="Xem trước"
                             >
                               <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                             </button>
                           )}
+                          <button
+                            onClick={() => void handleViewChunks(doc)}
+                            className="px-2 py-1 text-xs rounded-md border border-border hover:bg-muted transition-colors"
+                            title="Xem chunks"
+                          >
+                            Chunks
+                          </button>
                           <button
                             onClick={() => handleDelete(doc.id)}
                             className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
@@ -431,6 +516,105 @@ const AppDocuments = () => {
             </table>
           </div>
         </div>
+
+        {(isPreviewLoading || previewError || previewText) && (
+          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-display font-bold text-foreground">
+                Xem trước tài liệu{previewTitle ? `: ${previewTitle}` : ""}
+              </h3>
+              {(previewText || previewError) && (
+                <button
+                  onClick={() => {
+                    setPreviewText(null);
+                    setPreviewError(null);
+                    setPreviewTitle(null);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Đóng
+                </button>
+              )}
+            </div>
+
+            {isPreviewLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader className="w-4 h-4 animate-spin" />
+                Đang tải nội dung xem trước...
+              </div>
+            )}
+
+            {previewError && !isPreviewLoading && (
+              <div className="text-sm text-red-600">{previewError}</div>
+            )}
+
+            {previewText && !isPreviewLoading && !previewError && (
+              <pre className="whitespace-pre-wrap break-words text-sm text-foreground bg-muted/40 rounded-lg p-4 max-h-96 overflow-y-auto">
+                {previewText}
+              </pre>
+            )}
+          </div>
+        )}
+
+        {(isChunkDebugLoading || chunkDebugError || chunkDebugData) && (
+          <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-lg font-display font-bold text-foreground">
+                Chi tiết chunks{chunkDebugTitle ? `: ${chunkDebugTitle}` : ""}
+              </h3>
+              {(chunkDebugData || chunkDebugError) && (
+                <button
+                  onClick={() => {
+                    setChunkDebugData(null);
+                    setChunkDebugError(null);
+                    setChunkDebugTitle(null);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Đóng
+                </button>
+              )}
+            </div>
+
+            {isChunkDebugLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader className="w-4 h-4 animate-spin" />
+                Đang tải danh sách chunks...
+              </div>
+            )}
+
+            {chunkDebugError && !isChunkDebugLoading && (
+              <div className="text-sm text-red-600">{chunkDebugError}</div>
+            )}
+
+            {chunkDebugData && !isChunkDebugLoading && !chunkDebugError && (
+              <>
+                <div className="text-sm text-muted-foreground">
+                  strategy: <span className="font-medium text-foreground">{chunkDebugData.strategy ?? "N/A"}</span> | total chunks: <span className="font-medium text-foreground">{chunkDebugData.total_chunks}</span>
+                </div>
+                <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-1">
+                  {chunkDebugData.items.map((chunk) => (
+                    <div
+                      key={chunk.id}
+                      className="rounded-lg border border-border bg-muted/20 p-3 space-y-2"
+                    >
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
+                        <span>#{chunk.chunk_index}</span>
+                        <span>tokens: {chunk.token_count}</span>
+                        <span>chars: {chunk.char_count}</span>
+                        <span>source: {chunk.source_ref ?? "N/A"}</span>
+                        <span>section: {chunk.section_title ?? "N/A"}</span>
+                      </div>
+                      <pre className="whitespace-pre-wrap break-words text-sm text-foreground bg-card rounded-md p-3 overflow-x-auto">
+                        {chunk.content}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </UserLayout>
   );

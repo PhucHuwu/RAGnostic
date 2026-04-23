@@ -12,7 +12,15 @@ from app.schemas.chat import (
     ChatSessionCreateRequest,
     ChatSessionResponse,
 )
-from app.services.rag import build_assistant_answer, mock_bm25_rerank, mock_retrieve_context
+from app.services.rag import (
+    bm25_rerank,
+    build_assistant_answer,
+    compute_embedding,
+    merge_vector_and_lexical_results,
+    mock_bm25_rerank,
+    mock_retrieve_context,
+    retrieve_context,
+)
 from app.services.store import store
 
 router = APIRouter()
@@ -138,10 +146,61 @@ def send_message(
     profile = store.get_profile(db, session.profile_id)
     top_k = 5 if profile is None else profile.top_k
     rerank_top_n = 3 if profile is None else profile.rerank_top_n
-    candidates = mock_retrieve_context(payload.content, top_k=top_k)
-    reranked = mock_bm25_rerank(candidates, rerank_top_n=rerank_top_n)
+    chunks = store.list_chunks_for_profile(db, profile_id=session.profile_id)
+    retrieval_chunks = [
+        {
+            "chunk_id": item.id,
+            "content": item.content,
+            "embedding_vector": item.embedding_vector,
+            "source_ref": item.source_ref,
+            "section_title": item.section_title,
+        }
+        for item in chunks
+    ]
+    if retrieval_chunks:
+        query_embedding = compute_embedding(payload.content)
+        vector_rows = store.search_chunks_by_vector(
+            db,
+            profile_id=session.profile_id,
+            query_embedding=query_embedding,
+            top_k=max(top_k, rerank_top_n) * 2,
+        )
+        vector_candidates = [
+            {
+                "chunk_id": row.id,
+                "content": row.content,
+                "source_ref": row.source_ref,
+                "section_title": row.section_title,
+                "vector_score": max(0.0, 1 - float(distance)),
+                "lexical_score": 0.0,
+                "score": max(0.0, 1 - float(distance)),
+            }
+            for row, distance in vector_rows
+        ]
+        lexical_candidates = retrieve_context(
+            payload.content,
+            retrieval_chunks,
+            top_k=max(top_k, rerank_top_n) * 2,
+        )
+        candidates = merge_vector_and_lexical_results(
+            query=payload.content,
+            vector_candidates=vector_candidates,
+            lexical_candidates=lexical_candidates,
+            top_k=max(top_k, rerank_top_n) * 2,
+        )
+        reranked = bm25_rerank(payload.content, candidates, rerank_top_n=rerank_top_n)
+    else:
+        candidates = mock_retrieve_context(payload.content, top_k=top_k)
+        reranked = mock_bm25_rerank(candidates, rerank_top_n=rerank_top_n)
     start_ts = datetime.now(UTC)
-    answer = build_assistant_answer(payload.content, reranked, memory_window)
+    system_model_config = store.get_system_model_config(db)
+    answer, usage = build_assistant_answer(
+        question=payload.content,
+        reranked=reranked,
+        memory_window=memory_window,
+        system_model_config=system_model_config,
+        profile_model_override=profile.model_override if profile is not None else None,
+    )
     latency_ms = int((datetime.now(UTC) - start_ts).total_seconds() * 1000)
     assistant_message = store.add_message(
         db,
@@ -150,8 +209,19 @@ def send_message(
         content=answer,
         request_id=request_id,
         latency_ms=latency_ms,
-        prompt_tokens=max(1, len(payload.content) // 4),
-        completion_tokens=max(1, len(answer) // 4),
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+    )
+    store.add_retrieval_trace(
+        db,
+        message_id=assistant_message.id,
+        retrieval_query=payload.content,
+        top_k=top_k,
+        rerank_top_n=rerank_top_n,
+        bm25_enabled=True,
+        raw_candidates=candidates,
+        reranked_results=reranked,
+        citations=[item["chunk_id"] for item in reranked],
     )
     return {
         "stream": payload.stream,
@@ -161,9 +231,12 @@ def send_message(
             "top_k": top_k,
             "rerank_top_n": rerank_top_n,
             "bm25_enabled": True,
+            "embedding_model": settings.embedding_model,
             "raw_candidates": candidates,
             "reranked_results": reranked,
             "citations": [item["chunk_id"] for item in reranked],
             "memory_window_size": settings.memory_window,
+            "llm_provider": usage.get("provider"),
+            "llm_model": usage.get("model"),
         },
     }

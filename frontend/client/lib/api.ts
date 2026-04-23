@@ -212,9 +212,36 @@ export interface DocumentResponse {
     | "READY"
     | "FAILED"
     | "DELETED";
+  chunk_count: number;
   error_message: string | null;
   uploaded_at: string;
   updated_at: string;
+}
+
+export interface DocumentPreviewResponse {
+  document_id: string;
+  profile_id: string;
+  preview: string;
+}
+
+export interface DocumentChunkDetailResponse {
+  id: string;
+  chunk_index: number;
+  token_count: number;
+  char_count: number;
+  section_title: string | null;
+  page_no: number | null;
+  source_ref: string | null;
+  chunk_hash: string;
+  content: string;
+}
+
+export interface DocumentChunksResponse {
+  document_id: string;
+  profile_id: string;
+  total_chunks: number;
+  strategy: string | null;
+  items: DocumentChunkDetailResponse[];
 }
 
 export interface ChatSessionResponse {
@@ -352,6 +379,14 @@ export function deleteDocument(documentId: string) {
   return apiRequest<{ message: string }>(`/documents/${documentId}`, {
     method: "DELETE",
   });
+}
+
+export function previewDocument(documentId: string) {
+  return apiRequest<DocumentPreviewResponse>(`/documents/${documentId}/preview`);
+}
+
+export function getDocumentChunks(documentId: string) {
+  return apiRequest<DocumentChunksResponse>(`/documents/${documentId}/chunks`);
 }
 
 export function listChatSessions(profileId: string) {

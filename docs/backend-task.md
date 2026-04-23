@@ -50,7 +50,7 @@
 - [ ] Hoàn thiện `DELETE /documents/{document_id}` (soft delete + cleanup bất đồng bộ).
 - [ ] Hoàn thiện `GET /documents/{document_id}/preview`.
 - [ ] Xây worker pipeline: `UPLOADED -> PARSING -> CHUNKING -> INDEXING -> READY/FAILED`.
-- [ ] Tích hợp DockLink để parse tài liệu sang JSON có cấu trúc.
+- [ ] Tích hợp Docling (https://www.docling.ai/) để parse tài liệu sang JSON có cấu trúc (bao gồm OCR, bảng, công thức, thứ tự đọc).
 - [ ] Cài đặt 4 chiến lược chunking: outline, paragraph, semantic, character.
 - [ ] Tạo embedding, lưu vector vào `document_chunks`, gắn metadata truy xuất.
 - [ ] Cơ chế retry có kiểm soát và lưu `error_message` khi pipeline lỗi.
@@ -112,7 +112,7 @@
 - [ ] Benchmark endpoint chat và retrieval với dữ liệu mô phỏng tải.
 - [ ] Tối ưu truy vấn DB và index dựa trên kết quả benchmark.
 - [ ] Tối ưu worker concurrency cho ingest pipeline.
-- [ ] Cấu hình timeout/retry/circuit breaker cho dịch vụ ngoài (OpenRouter, DockLink, MinIO).
+- [ ] Cấu hình timeout/retry/circuit breaker cho dịch vụ ngoài (OpenRouter, Docling, MinIO).
 - [ ] Chuẩn bị script backup/restore cho PostgreSQL và MinIO metadata.
 
 ## 12) Tài liệu và bàn giao

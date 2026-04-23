@@ -141,6 +141,7 @@ def admin_list_documents(_: AdminUser, db: DbSession) -> list[DocumentResponse]:
             storage_key=document.storage_key,
             checksum_sha256=document.checksum_sha256,
             status=document.status,
+            chunk_count=store.count_chunks_for_document(db, document.id),
             error_message=document.error_message,
             uploaded_at=document.uploaded_at,
             updated_at=document.updated_at,
