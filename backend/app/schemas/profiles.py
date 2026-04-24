@@ -7,12 +7,14 @@ class ProfileCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     topic: str = Field(min_length=1, max_length=240)
     description: str | None = Field(default=None, max_length=2000)
+    icon_name: str = Field(default="bot", min_length=1, max_length=64)
 
 
 class ProfileUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     topic: str | None = Field(default=None, min_length=1, max_length=240)
     description: str | None = Field(default=None, max_length=2000)
+    icon_name: str | None = Field(default=None, min_length=1, max_length=64)
     model_override: str | None = Field(default=None, max_length=255)
     chunk_strategy: str | None = Field(default=None)
     chunk_size: int | None = Field(default=None, ge=100, le=10000)
@@ -29,6 +31,7 @@ class ProfileResponse(BaseModel):
     name: str
     topic: str
     description: str | None
+    icon_name: str
     model_override: str | None
     chunk_strategy: str
     chunk_size: int

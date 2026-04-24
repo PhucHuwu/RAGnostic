@@ -161,6 +161,7 @@ export interface ProfileResponse {
   name: string;
   topic: string;
   description: string | null;
+  icon_name: string;
   model_override: string | null;
   chunk_strategy: string;
   chunk_size: number;
@@ -177,12 +178,14 @@ export interface ProfileCreatePayload {
   name: string;
   topic: string;
   description?: string;
+  icon_name?: string;
 }
 
 export interface ProfileUpdatePayload {
   name?: string;
   topic?: string;
   description?: string;
+  icon_name?: string;
   model_override?: string;
   chunk_strategy?: string;
   chunk_size?: number;

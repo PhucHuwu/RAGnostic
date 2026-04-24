@@ -139,7 +139,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-[1600px] lg:flex">
+      <div className="w-full lg:flex">
         <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] border-r border-border bg-sidebar/40">
           <div className="p-5">
             <div className="mb-4 px-3 py-2 rounded-lg bg-accent/10 border border-accent/20">

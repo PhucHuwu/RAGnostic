@@ -33,7 +33,7 @@ const ClientRouteGuard = ({
       }
 
       setStatus("redirecting");
-      router.replace(sessionUser.role === "ADMIN" ? "/admin/users" : "/app/profiles");
+      router.replace(sessionUser.role === "ADMIN" ? "/admin/users" : "/app/profiles/new");
       return;
     }
 

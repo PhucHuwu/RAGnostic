@@ -1,10 +1,13 @@
-import AppProfileDetails from "../../../../client/pages/AppProfileDetails";
-import ClientRouteGuard from "../../../../client/components/auth/ClientRouteGuard";
+import { redirect } from "next/navigation";
 
-export default function AppProfileDetailsPage() {
-  return (
-    <ClientRouteGuard mode="protected" requiredRole="USER">
-      <AppProfileDetails />
-    </ClientRouteGuard>
-  );
+interface AppProfileDetailsPageProps {
+  params: {
+    profileId: string;
+  };
+}
+
+export default function AppProfileDetailsPage({
+  params,
+}: AppProfileDetailsPageProps) {
+  redirect(`/app/profiles/${params.profileId}/chat`);
 }

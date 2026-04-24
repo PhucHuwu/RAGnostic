@@ -1,8 +1,14 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  ApiError,
+  listProfiles,
+  logout,
+  type ProfileResponse,
+} from "@/lib/api";
 import {
   Brain,
   Briefcase,
@@ -14,7 +20,6 @@ import {
   Settings,
   UserCircle2,
 } from "lucide-react";
-import { logout } from "@/lib/api";
 import { clearAuthSession, getCurrentUser } from "@/lib/auth";
 import {
   Sheet,
@@ -22,6 +27,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { getProfileIconComponent } from "@/lib/profile-icons";
 
 interface UserLayoutProps {
   children: ReactNode;
@@ -34,16 +40,17 @@ interface NavigationItem {
   isActive: (path: string) => boolean;
 }
 
-const PROFILE_DETAIL_PATTERN = /^\/app\/profiles\/[^/]+(?:\/(chat|documents))?$/;
+interface SidebarProfile {
+  id: string;
+  name: string;
+  iconName: string;
+}
+
+const PROFILE_DETAIL_PATTERN =
+  /^\/app\/profiles\/(?!new(?:\/|$))[^/]+(?:\/(chat|documents))?$/;
+const USER_SIDEBAR_COLLAPSED_KEY = "ragnostic.ui.userSidebarCollapsed";
 
 const USER_NAV_ITEMS: NavigationItem[] = [
-  {
-    href: "/app/profiles",
-    icon: <Briefcase className="w-5 h-5 shrink-0" />,
-    label: "Trợ lý AI của tôi",
-    isActive: (path) =>
-      path === "/app/profiles" || PROFILE_DETAIL_PATTERN.test(path),
-  },
   {
     href: "/app/profiles/new",
     icon: <FileText className="w-5 h-5 shrink-0" />,
@@ -53,9 +60,6 @@ const USER_NAV_ITEMS: NavigationItem[] = [
 ];
 
 function getPageTitle(pathname: string) {
-  if (pathname === "/app/profiles") {
-    return "Trợ lý AI";
-  }
   if (pathname === "/app/profiles/new") {
     return "Tạo trợ lý";
   }
@@ -66,7 +70,7 @@ function getPageTitle(pathname: string) {
     return "Hội thoại";
   }
   if (PROFILE_DETAIL_PATTERN.test(pathname)) {
-    return "Thiết lập trợ lý";
+    return "Trợ lý AI";
   }
   return "Không gian làm việc";
 }
@@ -77,6 +81,9 @@ const UserLayout = ({ children }: UserLayoutProps) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [profiles, setProfiles] = useState<SidebarProfile[]>([]);
+  const [isProfilesLoading, setIsProfilesLoading] = useState(true);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
   const currentUser = getCurrentUser();
 
   const pageTitle = useMemo(() => getPageTitle(pathname), [pathname]);
@@ -86,6 +93,53 @@ const UserLayout = ({ children }: UserLayoutProps) => {
   );
 
   const closeMobileNav = () => setIsMobileNavOpen(false);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(USER_SIDEBAR_COLLAPSED_KEY);
+      if (stored === "1") {
+        setIsSidebarCollapsed(true);
+      }
+    } catch {
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        USER_SIDEBAR_COLLAPSED_KEY,
+        isSidebarCollapsed ? "1" : "0",
+      );
+    } catch {
+    }
+  }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    const loadProfiles = async () => {
+      setIsProfilesLoading(true);
+      setProfilesError(null);
+      try {
+        const data = await listProfiles();
+        setProfiles(
+          data.map((item: ProfileResponse) => ({
+            id: item.id,
+            name: item.name,
+            iconName: item.icon_name,
+          })),
+        );
+      } catch (error) {
+        if (error instanceof ApiError) {
+          setProfilesError(error.message);
+        } else {
+          setProfilesError("Không thể tải danh sách trợ lý");
+        }
+      } finally {
+        setIsProfilesLoading(false);
+      }
+    };
+
+    void loadProfiles();
+  }, []);
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -103,6 +157,57 @@ const UserLayout = ({ children }: UserLayoutProps) => {
     }
   };
 
+  const renderProfileLinks = (collapsed: boolean, mobile = false) => {
+    if (isProfilesLoading) {
+      return !collapsed ? (
+        <p className="px-2 text-xs text-muted-foreground">Đang tải...</p>
+      ) : null;
+    }
+
+    if (profilesError) {
+      return !collapsed ? (
+        <p className="px-2 text-xs text-destructive">{profilesError}</p>
+      ) : null;
+    }
+
+    if (profiles.length === 0) {
+      return !collapsed ? (
+        <p className="px-2 text-xs text-muted-foreground">Chưa có trợ lý nào</p>
+      ) : null;
+    }
+
+    return profiles.map((profile) => {
+      const active = pathname.startsWith(`/app/profiles/${profile.id}`);
+      const ProfileIcon = getProfileIconComponent(profile.iconName);
+
+      return (
+        <Link
+          key={profile.id}
+          href={`/app/profiles/${profile.id}/chat`}
+          onClick={mobile ? closeMobileNav : undefined}
+          title={profile.name}
+          aria-label={profile.name}
+          className={`flex items-center rounded-lg h-11 transition-colors ${
+            active
+              ? "bg-sidebar-primary text-sidebar-primary-foreground"
+              : "text-sidebar-foreground hover:bg-sidebar-accent/20"
+          } ${
+            collapsed
+              ? "justify-start p-0 w-11 gap-0"
+              : "w-full justify-start p-0 gap-0 pr-1"
+          }`}
+        >
+          <span className="w-11 h-11 shrink-0 inline-flex items-center justify-center">
+            <ProfileIcon className="w-5 h-5 shrink-0" />
+          </span>
+          {!collapsed && (
+            <p className="font-medium whitespace-nowrap truncate pr-2">{profile.name}</p>
+          )}
+        </Link>
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur">
@@ -115,7 +220,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <Link href="/app/profiles" className="flex items-center gap-3 min-w-0">
+            <Link href="/app/profiles/new" className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-lg bg-gradient-ai flex items-center justify-center">
                 <Brain className="w-5 h-5 text-white" />
               </div>
@@ -132,20 +237,22 @@ const UserLayout = ({ children }: UserLayoutProps) => {
               <span className="text-sm font-semibold text-primary">{userInitial}</span>
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-medium leading-4">{currentUser?.username ?? "Người dùng"}</p>
+              <p className="text-sm font-medium leading-4">
+                {currentUser?.username ?? "Người dùng"}
+              </p>
               <p className="text-xs text-muted-foreground">Người dùng</p>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-[1600px] lg:flex">
+      <div className="w-full lg:flex">
         <aside
           className={`hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] border-r border-border bg-sidebar/40 overflow-hidden transition-[width] duration-300 ease-in-out ${
             isSidebarCollapsed ? "lg:w-20" : "lg:w-72"
           }`}
         >
-          <div className="p-5">
+          <div className="p-5 overflow-y-auto overflow-x-hidden">
             <div
               className={`flex items-center mb-3 ${
                 isSidebarCollapsed ? "justify-center" : "justify-between"
@@ -169,6 +276,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
                 )}
               </button>
             </div>
+
             <nav className="space-y-1">
               {USER_NAV_ITEMS.map((item) => (
                 <NavLink
@@ -181,19 +289,34 @@ const UserLayout = ({ children }: UserLayoutProps) => {
                 />
               ))}
             </nav>
+
+            <div className="mt-5 space-y-2">
+              <p
+                className={`px-2 text-[11px] font-semibold uppercase tracking-wide h-4 whitespace-nowrap transition-opacity ${
+                  isSidebarCollapsed
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100 text-muted-foreground"
+                }`}
+              >
+                Danh sách trợ lý
+              </p>
+              <div className="space-y-1">{renderProfileLinks(isSidebarCollapsed)}</div>
+            </div>
           </div>
 
           <div className="mt-auto p-5 border-t border-border space-y-2">
             <button
               className={`flex items-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors ${
                 isSidebarCollapsed
-                  ? "justify-center p-0 h-11 w-11"
-                  : "w-full h-11 gap-3 px-3"
+                  ? "justify-start p-0 h-11 w-11"
+                  : "w-full h-11 justify-start p-0"
               }`}
               title="Thiết lập"
               aria-label="Thiết lập"
             >
-              <Settings className="w-5 h-5 shrink-0" />
+              <span className="w-11 h-11 shrink-0 inline-flex items-center justify-center">
+                <Settings className="w-5 h-5 shrink-0" />
+              </span>
               {!isSidebarCollapsed && <span className="whitespace-nowrap">Thiết lập</span>}
             </button>
             <button
@@ -201,13 +324,15 @@ const UserLayout = ({ children }: UserLayoutProps) => {
               disabled={isLoggingOut}
               className={`flex items-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 ${
                 isSidebarCollapsed
-                  ? "justify-center p-0 h-11 w-11"
-                  : "w-full h-11 gap-3 px-3"
+                  ? "justify-start p-0 h-11 w-11"
+                  : "w-full h-11 justify-start p-0"
               }`}
               title={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
               aria-label={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
             >
-              <LogOut className="w-5 h-5 shrink-0" />
+              <span className="w-11 h-11 shrink-0 inline-flex items-center justify-center">
+                <LogOut className="w-5 h-5 shrink-0" />
+              </span>
               {!isSidebarCollapsed && (
                 <span className="whitespace-nowrap">
                   {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
@@ -229,7 +354,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
             </SheetTitle>
           </SheetHeader>
 
-          <div className="px-5 py-4">
+          <div className="px-5 py-4 overflow-y-auto">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
               Không gian làm việc
             </p>
@@ -245,6 +370,13 @@ const UserLayout = ({ children }: UserLayoutProps) => {
                 />
               ))}
             </nav>
+
+            <div className="mt-5 space-y-2">
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Danh sách trợ lý
+              </p>
+              <div className="space-y-1">{renderProfileLinks(false, true)}</div>
+            </div>
           </div>
 
           <div className="mt-auto border-t border-border p-5 space-y-2">
@@ -293,9 +425,9 @@ const NavLink = ({
       active
         ? "bg-sidebar-primary text-sidebar-primary-foreground"
         : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-    } ${collapsed ? "justify-center p-0 w-11 gap-0" : "px-3 gap-3"}`}
+    } ${collapsed ? "justify-start p-0 w-11 gap-0" : "w-full justify-start p-0 gap-0"}`}
   >
-    <span className="w-5 h-5 shrink-0 inline-flex items-center justify-center">
+    <span className="w-11 h-11 shrink-0 inline-flex items-center justify-center">
       {icon}
     </span>
     {!collapsed && <span className="font-medium whitespace-nowrap">{label}</span>}

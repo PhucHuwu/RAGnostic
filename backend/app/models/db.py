@@ -59,6 +59,7 @@ class ChatbotProfileDB(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     topic: Mapped[str] = mapped_column(String(240), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon_name: Mapped[str] = mapped_column(String(64), nullable=False, default="bot")
     model_override: Mapped[str | None] = mapped_column(String(255), nullable=True)
     chunk_strategy: Mapped[str] = mapped_column(String(32), nullable=False, default="PARAGRAPH")
     chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)

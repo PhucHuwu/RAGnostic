@@ -281,9 +281,9 @@ const AppProfiles = () => {
                       Tài liệu
                     </Link>
                     <Link
-                      href={`/app/profiles/${profile.id}`}
+                      href={`/app/profiles/${profile.id}/chat`}
                       className="p-2 rounded-lg border border-border text-foreground hover:bg-muted/50 transition-colors"
-                      title="Chỉnh sửa"
+                      title="Mở chat"
                     >
                       <Edit2 className="w-4 h-4" />
                     </Link>

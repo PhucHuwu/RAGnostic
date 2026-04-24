@@ -145,8 +145,15 @@ class DatabaseStore:
         name: str,
         topic: str,
         description: str | None = None,
+        icon_name: str = "bot",
     ) -> ChatbotProfileDB:
-        profile = ChatbotProfileDB(user_id=user_id, name=name, topic=topic, description=description)
+        profile = ChatbotProfileDB(
+            user_id=user_id,
+            name=name,
+            topic=topic,
+            description=description,
+            icon_name=icon_name,
+        )
         db.add(profile)
         db.commit()
         db.refresh(profile)

@@ -43,7 +43,7 @@ const Register = () => {
           role: auth.user.role,
         },
       });
-      router.push("/app/profiles");
+      router.push("/app/profiles/new");
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

@@ -17,6 +17,7 @@ def _to_profile_response(profile: ChatbotProfileDB) -> ProfileResponse:
         name=profile.name,
         topic=profile.topic,
         description=profile.description,
+        icon_name=profile.icon_name,
         model_override=profile.model_override,
         chunk_strategy=profile.chunk_strategy,
         chunk_size=profile.chunk_size,
@@ -47,6 +48,7 @@ def create_profile(
         name=payload.name,
         topic=payload.topic,
         description=payload.description,
+        icon_name=payload.icon_name,
     )
     return _to_profile_response(profile)
 

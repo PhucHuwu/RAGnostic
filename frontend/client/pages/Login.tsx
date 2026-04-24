@@ -50,7 +50,7 @@ const Login = () => {
         },
       });
       const fallbackPath =
-        response.user.role === "ADMIN" ? "/admin/users" : "/app/profiles";
+        response.user.role === "ADMIN" ? "/admin/users" : "/app/profiles/new";
       const requestedPath = searchParams.get("next");
       const canUseRequestedPath =
         typeof requestedPath === "string" &&

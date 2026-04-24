@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   AlertCircle,
+  FileUp,
   Loader,
   MessageSquare,
   PanelLeft,
@@ -28,6 +29,7 @@ import {
   listChatSessions,
   listMessages,
   sendMessage,
+  uploadDocument,
   type ChatMessageResponse,
   type ChatSessionResponse,
 } from "@/lib/api";
@@ -85,7 +87,10 @@ const AppChat = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+  const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
+  const [uploadHint, setUploadHint] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -297,6 +302,57 @@ const AppChat = () => {
     }
   };
 
+  const handleUploadFiles = async (files: FileList | null) => {
+    if (!files || !profileId || isUploadingDocuments) {
+      return;
+    }
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    const ALLOWED_EXTS = new Set(["pdf", "docx", "txt"]);
+    const selectedFiles = Array.from(files);
+
+    setIsUploadingDocuments(true);
+    setUploadHint(null);
+    setError(null);
+
+    let uploadedCount = 0;
+    const failedFiles: string[] = [];
+
+    for (const file of selectedFiles) {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!ALLOWED_EXTS.has(ext)) {
+        failedFiles.push(file.name);
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        failedFiles.push(file.name);
+        continue;
+      }
+
+      try {
+        await uploadDocument(profileId, file);
+        uploadedCount += 1;
+      } catch {
+        failedFiles.push(file.name);
+      }
+    }
+
+    if (uploadedCount > 0 && failedFiles.length === 0) {
+      setUploadHint(`Đã tải lên ${uploadedCount} tài liệu. Hệ thống sẽ tự xử lý nền.`);
+    } else if (uploadedCount > 0) {
+      setUploadHint(
+        `Đã tải lên ${uploadedCount} tài liệu, ${failedFiles.length} tệp chưa hợp lệ hoặc lỗi upload.`,
+      );
+    } else {
+      setError("Không thể tải lên tài liệu. Kiểm tra định dạng PDF/DOCX/TXT và kích thước <= 10MB.");
+    }
+
+    setIsUploadingDocuments(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const filteredSessions = useMemo(
     () =>
       sessions.filter((session) =>
@@ -387,10 +443,10 @@ const AppChat = () => {
 
   return (
     <UserLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 h-[calc(100dvh-112px)] sm:h-[calc(100dvh-128px)] lg:h-[calc(100vh-200px)] -mx-4 sm:mx-0">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 h-[calc(100dvh-96px)] sm:h-[calc(100dvh-112px)] lg:h-[calc(100vh-128px)] -mx-4 sm:mx-0">
         <div className="hidden lg:block lg:col-span-1">{sessionsPanel()}</div>
 
-        <div className="lg:col-span-3 flex flex-col bg-card rounded-none sm:rounded-xl border-y sm:border border-border overflow-hidden">
+        <div className="lg:col-span-3 flex flex-col bg-card rounded-none sm:rounded-xl border-t border-x sm:border border-border overflow-hidden">
           <div className="p-4 border-b border-border bg-card/50">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -408,6 +464,28 @@ const AppChat = () => {
                 <PanelLeft className="w-4 h-4" />
                 Phiên chat
               </button>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.docx,.txt"
+                  className="hidden"
+                  onChange={(event) => void handleUploadFiles(event.currentTarget.files)}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingDocuments}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors disabled:opacity-50"
+                >
+                  {isUploadingDocuments ? (
+                    <Loader className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileUp className="w-4 h-4" />
+                  )}
+                  Tải tài liệu
+                </button>
+              </div>
             </div>
           </div>
 
@@ -418,6 +496,12 @@ const AppChat = () => {
                 onRetry={() => void bootstrap(true)}
                 isRetrying={isRetrying}
               />
+            </div>
+          )}
+
+          {uploadHint && (
+            <div className="mx-6 mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
+              {uploadHint}
             </div>
           )}
 
