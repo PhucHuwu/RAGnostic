@@ -53,7 +53,7 @@ const AppProfileNew = () => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!name.trim() || !topic.trim()) {
-      setError("Tên profile và chủ đề là bắt buộc");
+      setError("Tên trợ lý và chủ đề là bắt buộc");
       return;
     }
 
@@ -114,7 +114,7 @@ const AppProfileNew = () => {
               htmlFor="name"
               className="block text-sm font-semibold text-foreground mb-2"
             >
-              Tên profile
+              Tên trợ lý
             </label>
             <input
               id="name"
