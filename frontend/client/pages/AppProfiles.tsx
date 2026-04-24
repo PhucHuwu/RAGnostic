@@ -274,7 +274,7 @@ const AppProfiles = () => {
                       Chat
                     </Link>
                     <Link
-                      href={`/app/profiles/${profile.id}/documents`}
+                      href={`/app/profiles/${profile.id}/chat?panel=documents`}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground text-sm font-semibold hover:bg-muted/50 transition-colors"
                     >
                       <FileText className="w-4 h-4" />

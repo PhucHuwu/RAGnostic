@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
+  FileText,
   FileUp,
   Loader,
   MessageSquare,
@@ -11,6 +12,7 @@ import {
   Plus,
   Search,
   Send,
+  Trash2,
 } from "lucide-react";
 import UserLayout from "@/components/layouts/UserLayout";
 import { ApiErrorState } from "@/components/common/api-state";
@@ -26,11 +28,14 @@ import {
   createChatSession,
   deleteChatSession,
   getProfile,
+  listDocuments,
   listChatSessions,
   listMessages,
   sendMessage,
+  deleteDocument,
   uploadDocument,
   type ChatMessageResponse,
+  type DocumentResponse,
   type ChatSessionResponse,
 } from "@/lib/api";
 
@@ -73,6 +78,7 @@ function toUiMessage(item: ChatMessageResponse): UiMessage {
 
 const AppChat = () => {
   const params = useParams<{ profileId: string }>();
+  const searchParams = useSearchParams();
   const profileId = params.profileId;
 
   const [sessions, setSessions] = useState<UiSession[]>([]);
@@ -87,10 +93,13 @@ const AppChat = () => {
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isSessionsOpen, setIsSessionsOpen] = useState(false);
+  const [isDocumentsVisible, setIsDocumentsVisible] = useState(false);
+  const [documents, setDocuments] = useState<DocumentResponse[]>([]);
+  const [isDocumentsLoading, setIsDocumentsLoading] = useState(true);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
-  const [uploadHint, setUploadHint] = useState<string | null>(null);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -144,6 +153,37 @@ const AppChat = () => {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  const loadDocuments = useCallback(async () => {
+    if (!profileId) {
+      return;
+    }
+
+    setIsDocumentsLoading(true);
+    setDocumentsError(null);
+    try {
+      const data = await listDocuments(profileId);
+      setDocuments(data);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setDocumentsError(err.message);
+      } else {
+        setDocumentsError("Không thể tải danh sách tài liệu");
+      }
+    } finally {
+      setIsDocumentsLoading(false);
+    }
+  }, [profileId]);
+
+  useEffect(() => {
+    void loadDocuments();
+  }, [loadDocuments]);
+
+  useEffect(() => {
+    if (searchParams.get("panel") === "documents") {
+      setIsDocumentsVisible(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const loadProfileName = async () => {
@@ -311,46 +351,96 @@ const AppChat = () => {
     const ALLOWED_EXTS = new Set(["pdf", "docx", "txt"]);
     const selectedFiles = Array.from(files);
 
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
     setIsUploadingDocuments(true);
-    setUploadHint(null);
     setError(null);
+    setDocumentsError(null);
 
     let uploadedCount = 0;
-    const failedFiles: string[] = [];
+    const failedFileMessages: string[] = [];
 
     for (const file of selectedFiles) {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
       if (!ALLOWED_EXTS.has(ext)) {
-        failedFiles.push(file.name);
+        failedFileMessages.push(`${file.name}: định dạng không hỗ trợ`);
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        failedFiles.push(file.name);
+        failedFileMessages.push(`${file.name}: vượt quá 10MB`);
         continue;
       }
 
       try {
         await uploadDocument(profileId, file);
         uploadedCount += 1;
-      } catch {
-        failedFiles.push(file.name);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          failedFileMessages.push(`${file.name}: ${err.message}`);
+        } else {
+          failedFileMessages.push(`${file.name}: upload thất bại`);
+        }
       }
     }
 
-    if (uploadedCount > 0 && failedFiles.length === 0) {
-      setUploadHint(`Đã tải lên ${uploadedCount} tài liệu. Hệ thống sẽ tự xử lý nền.`);
-    } else if (uploadedCount > 0) {
-      setUploadHint(
-        `Đã tải lên ${uploadedCount} tài liệu, ${failedFiles.length} tệp chưa hợp lệ hoặc lỗi upload.`,
+    if (uploadedCount === 0) {
+      setDocumentsError(
+        failedFileMessages.length > 0
+          ? `Không thể tải lên tài liệu: ${failedFileMessages[0]}`
+          : "Không có tệp nào được chọn.",
       );
-    } else {
-      setError("Không thể tải lên tài liệu. Kiểm tra định dạng PDF/DOCX/TXT và kích thước <= 10MB.");
+    } else if (failedFileMessages.length > 0) {
+      setDocumentsError(
+        `Đã tải lên ${uploadedCount} tài liệu, ${failedFileMessages.length} tệp lỗi. Ví dụ: ${failedFileMessages[0]}`,
+      );
     }
 
+    await loadDocuments();
+
     setIsUploadingDocuments(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (deletingDocumentId) {
+      return;
     }
+
+    setDeletingDocumentId(documentId);
+    setDocumentsError(null);
+    try {
+      await deleteDocument(documentId);
+      setDocuments((prev) => prev.filter((item) => item.id !== documentId));
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setDocumentsError(err.message);
+      } else {
+        setDocumentsError("Không thể xóa tài liệu");
+      }
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  const documentStatusLabel = (status: string) => {
+    if (status === "READY") return "Sẵn sàng";
+    if (status === "FAILED") return "Lỗi";
+    if (status === "PARSING") return "Đang phân tích";
+    if (status === "CHUNKING") return "Đang chia nhỏ";
+    if (status === "INDEXING") return "Đang lập chỉ mục";
+    if (status === "UPLOADED") return "Đã tải lên";
+    return status;
   };
 
   const filteredSessions = useMemo(
@@ -441,12 +531,90 @@ const AppChat = () => {
     </div>
   );
 
+  const documentsPanel = (inputId: string) => (
+    <div className="flex h-full flex-col bg-card rounded-xl border border-border overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">Kho tài liệu</h3>
+        <span className="text-xs text-muted-foreground">{documents.length} tài liệu</span>
+      </div>
+
+      <div className="p-4 border-b border-border space-y-3">
+        <div>
+          <p className="text-xs text-muted-foreground">
+            PDF, DOCX, TXT - tối đa 10MB mỗi tệp.
+          </p>
+        </div>
+
+        <input
+          id={inputId}
+          type="file"
+          multiple
+          accept=".pdf,.docx,.txt"
+          className="hidden"
+          onChange={(event) => void handleUploadFiles(event.currentTarget.files)}
+        />
+
+        <button
+          onClick={() => document.getElementById(inputId)?.click()}
+          disabled={isUploadingDocuments}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors disabled:opacity-50"
+        >
+          {isUploadingDocuments ? (
+            <Loader className="w-4 h-4 animate-spin" />
+          ) : (
+            <FileUp className="w-4 h-4" />
+          )}
+          {isUploadingDocuments ? "Đang tải tệp..." : "Tải tài liệu"}
+        </button>
+
+        {documentsError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {documentsError}
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-y-auto divide-y divide-border">
+        {isDocumentsLoading ? (
+          <div className="p-4 text-sm text-muted-foreground">Đang tải tài liệu...</div>
+        ) : documents.length === 0 ? (
+          <div className="p-4 text-sm text-muted-foreground">
+            Chưa có tài liệu nào cho trợ lý này.
+          </div>
+        ) : (
+          documents.map((doc) => (
+            <div key={doc.id} className="px-4 py-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{doc.file_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatBytes(doc.file_size_bytes)} • {documentStatusLabel(doc.status)}
+                </p>
+              </div>
+              <button
+                onClick={() => void handleDeleteDocument(doc.id)}
+                disabled={deletingDocumentId === doc.id}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              >
+                {deletingDocumentId === doc.id ? (
+                  <Loader className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3 h-3" />
+                )}
+                Xóa
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <UserLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 h-[calc(100dvh-96px)] sm:h-[calc(100dvh-112px)] lg:h-[calc(100vh-128px)] -mx-4 sm:mx-0">
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 lg:gap-6 h-[calc(100dvh-96px)] sm:h-[calc(100dvh-112px)] lg:h-[calc(100vh-128px)] -mx-4 sm:mx-0">
         <div className="hidden lg:block lg:col-span-1">{sessionsPanel()}</div>
 
-        <div className="lg:col-span-3 flex flex-col bg-card rounded-none sm:rounded-xl border-t border-x sm:border border-border overflow-hidden">
+        <div className={`${isDocumentsVisible ? "lg:col-span-4" : "lg:col-span-5"} flex flex-col bg-card rounded-none sm:rounded-xl border-t border-x sm:border border-border overflow-hidden`}>
           <div className="p-4 border-b border-border bg-card/50">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -458,34 +626,19 @@ const AppChat = () => {
                 </p>
               </div>
               <button
+                onClick={() => setIsDocumentsVisible((prev) => !prev)}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                {isDocumentsVisible ? "Ẩn tài liệu" : "Kho tài liệu"}
+              </button>
+              <button
                 onClick={() => setIsSessionsOpen(true)}
                 className="lg:hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors"
               >
                 <PanelLeft className="w-4 h-4" />
                 Phiên chat
               </button>
-              <div className="flex items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.docx,.txt"
-                  className="hidden"
-                  onChange={(event) => void handleUploadFiles(event.currentTarget.files)}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingDocuments}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors disabled:opacity-50"
-                >
-                  {isUploadingDocuments ? (
-                    <Loader className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FileUp className="w-4 h-4" />
-                  )}
-                  Tải tài liệu
-                </button>
-              </div>
             </div>
           </div>
 
@@ -499,9 +652,9 @@ const AppChat = () => {
             </div>
           )}
 
-          {uploadHint && (
-            <div className="mx-6 mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
-              {uploadHint}
+          {isDocumentsVisible && (
+            <div className="lg:hidden px-3 sm:px-4 pt-3 pb-1 h-[42%] min-h-[240px]">
+              {documentsPanel("chat-doc-upload-mobile")}
             </div>
           )}
 
@@ -608,6 +761,12 @@ const AppChat = () => {
             </div>
           </div>
         </div>
+
+        {isDocumentsVisible && (
+          <div className="hidden lg:block lg:col-span-1">
+            {documentsPanel("chat-doc-upload-desktop")}
+          </div>
+        )}
       </div>
 
       <Sheet open={isSessionsOpen} onOpenChange={setIsSessionsOpen}>
