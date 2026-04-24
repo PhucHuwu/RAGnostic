@@ -1,7 +1,16 @@
 # RAGnostic
 
 RAGnostic is a monorepo for a multi-tenant, domain-agnostic RAG system.
-Requirements are documented in `docs/project.md` and `docs/system-design.md`.
+Requirements are documented in [`docs/project.md`](docs/project.md) and [`docs/system-design.md`](docs/system-design.md).
+
+## Contents
+
+- [Project structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Quick start](#quick-start)
+- [Smoke test](#smoke-test)
+- [Code quality](#code-quality)
+- [Notes](#notes)
 
 ## Project structure
 
@@ -32,7 +41,7 @@ docker compose -f infra/docker-compose.yml up -d
 cp backend/.env.example backend/.env
 ```
 
-Set at least these values in `backend/.env`:
+Set at least these values in [`backend/.env`](backend/.env):
 
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_MODEL`
@@ -63,9 +72,9 @@ npm --prefix frontend install
 npm --prefix frontend run dev
 ```
 
-Set in `frontend/.env.local`:
+Set in [`frontend/.env.local`](frontend/.env.local):
 
-```bash
+```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8037/api/v1
 ```
 

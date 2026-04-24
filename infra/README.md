@@ -6,6 +6,11 @@ Local development dependencies:
 - Redis
 - MinIO
 
+## Contents
+
+- [Run](#run)
+- [Ports](#ports)
+
 ## Run
 
 ```bash

@@ -2,7 +2,13 @@
 
 FastAPI service for RAGnostic.
 
+## Contents
+
+- [Run with uvx](#run-with-uvx)
+
 ## Run with uvx
+
+From the `backend/` directory:
 
 ```bash
 uvx --from pip pip --python .venv/bin/python install -e ".[dev]"

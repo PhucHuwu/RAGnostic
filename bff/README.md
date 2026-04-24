@@ -2,7 +2,13 @@
 
 Express Backend-for-Frontend service.
 
+## Contents
+
+- [Run](#run)
+
 ## Run
+
+From the `bff/` directory:
 
 ```bash
 npm install
