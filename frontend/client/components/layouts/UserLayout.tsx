@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Brain,
   Briefcase,
+  ChevronsLeft,
+  ChevronsRight,
   FileText,
   LogOut,
   Menu,
@@ -74,6 +76,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const currentUser = getCurrentUser();
 
   const pageTitle = useMemo(() => getPageTitle(pathname), [pathname]);
@@ -137,11 +140,33 @@ const UserLayout = ({ children }: UserLayoutProps) => {
       </header>
 
       <div className="mx-auto w-full max-w-[1600px] lg:flex">
-        <aside className="hidden lg:flex lg:w-72 lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] border-r border-border bg-sidebar/40">
+        <aside
+          className={`hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] border-r border-border bg-sidebar/40 overflow-hidden transition-[width] duration-300 ease-in-out ${
+            isSidebarCollapsed ? "lg:w-20" : "lg:w-72"
+          }`}
+        >
           <div className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-              Không gian làm việc
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <p
+                className={`text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap overflow-hidden transition-all duration-200 ${
+                  isSidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100"
+                }`}
+              >
+                Không gian làm việc
+              </p>
+              <button
+                onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+                className="h-8 w-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                aria-label={isSidebarCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
+                title={isSidebarCollapsed ? "Mở rộng sidebar" : "Thu gọn sidebar"}
+              >
+                {isSidebarCollapsed ? (
+                  <ChevronsRight className="w-4 h-4" />
+                ) : (
+                  <ChevronsLeft className="w-4 h-4" />
+                )}
+              </button>
+            </div>
             <nav className="space-y-1">
               {USER_NAV_ITEMS.map((item) => (
                 <NavLink
@@ -150,23 +175,50 @@ const UserLayout = ({ children }: UserLayoutProps) => {
                   icon={item.icon}
                   label={item.label}
                   active={item.isActive(pathname)}
+                  collapsed={isSidebarCollapsed}
                 />
               ))}
             </nav>
           </div>
 
           <div className="mt-auto p-5 border-t border-border space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors">
+            <button
+              className={`w-full flex items-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors ${
+                isSidebarCollapsed
+                  ? "justify-center p-0 h-11 w-11 mx-auto"
+                  : "gap-3 px-4 py-3"
+              }`}
+              title="Thiết lập"
+              aria-label="Thiết lập"
+            >
               <Settings className="w-5 h-5" />
-              <span>Thiết lập</span>
+              <span
+                className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${
+                  isSidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
+                }`}
+              >
+                Thiết lập
+              </span>
             </button>
             <button
               onClick={() => void handleLogout()}
               disabled={isLoggingOut}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              className={`w-full flex items-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 ${
+                isSidebarCollapsed
+                  ? "justify-center p-0 h-11 w-11 mx-auto"
+                  : "gap-3 px-4 py-3"
+              }`}
+              title={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+              aria-label={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
             >
               <LogOut className="w-5 h-5" />
-              <span>{isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
+              <span
+                className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${
+                  isSidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
+                }`}
+              >
+                {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+              </span>
             </button>
           </div>
         </aside>
@@ -226,21 +278,37 @@ interface NavLinkProps {
   icon: ReactNode;
   label: string;
   active: boolean;
+  collapsed?: boolean;
   onNavigate?: () => void;
 }
 
-const NavLink = ({ href, icon, label, active, onNavigate }: NavLinkProps) => (
+const NavLink = ({
+  href,
+  icon,
+  label,
+  active,
+  collapsed = false,
+  onNavigate,
+}: NavLinkProps) => (
   <Link
     href={href}
     onClick={onNavigate}
-    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+    title={label}
+    aria-label={label}
+    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
       active
         ? "bg-sidebar-primary text-sidebar-primary-foreground"
         : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-    }`}
+    } ${collapsed ? "justify-center p-0 h-11 w-11 mx-auto gap-0" : "gap-3"}`}
   >
     {icon}
-    <span className="font-medium">{label}</span>
+    <span
+      className={`font-medium whitespace-nowrap overflow-hidden transition-all duration-200 ${
+        collapsed ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100"
+      }`}
+    >
+      {label}
+    </span>
   </Link>
 );
 

@@ -23,6 +23,7 @@ import {
 import {
   ApiError,
   createChatSession,
+  deleteChatSession,
   getProfile,
   listChatSessions,
   listMessages,
@@ -79,6 +80,7 @@ const AppChat = () => {
   const [inputValue, setInputValue] = useState("");
   const [profileName, setProfileName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -212,6 +214,36 @@ const AppChat = () => {
     }
   };
 
+  const handleDeleteSession = async (sessionId: string) => {
+    if (deletingSessionId) {
+      return;
+    }
+
+    setDeletingSessionId(sessionId);
+    setError(null);
+    try {
+      await deleteChatSession(sessionId);
+      const remaining = sessions.filter((item) => item.id !== sessionId);
+      setSessions(remaining);
+
+      if (activeSessionId === sessionId) {
+        const nextSession = remaining[0];
+        setActiveSessionId(nextSession?.id ?? null);
+        if (!nextSession) {
+          setMessages([]);
+        }
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể xóa phiên chat");
+      }
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!activeSessionId || !inputValue.trim() || isLoading) {
       return;
@@ -312,31 +344,40 @@ const AppChat = () => {
             </div>
           ) : (
             filteredSessions.map((session) => (
-              <button
+              <div
                 key={session.id}
-                onClick={() => {
-                  setActiveSessionId(session.id);
-                  if (isMobile) {
-                    closeSessionsDrawer();
-                  }
-                }}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
+                className={`px-3 py-2 rounded-lg transition-colors ${
                   activeSessionId === session.id
                     ? "bg-primary/10 border border-primary/30"
-                    : "hover:bg-muted/50"
+                    : "hover:bg-muted/50 border border-transparent"
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setActiveSessionId(session.id);
+                      if (isMobile) {
+                        closeSessionsDrawer();
+                      }
+                    }}
+                    className="flex-1 min-w-0 text-left"
+                  >
                     <p className="font-medium text-foreground truncate text-sm">
                       {session.title}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground leading-4">
                       {session.messageCount} tin nhắn
                     </p>
-                  </div>
+                  </button>
+                  <button
+                    onClick={() => void handleDeleteSession(session.id)}
+                    disabled={deletingSessionId === session.id}
+                    className="text-[11px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0"
+                  >
+                    {deletingSessionId === session.id ? "Đang xóa..." : "Xóa"}
+                  </button>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>

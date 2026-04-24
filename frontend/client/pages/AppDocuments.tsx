@@ -25,6 +25,7 @@ import {
 import {
   ApiError,
   deleteDocument,
+  getProfile,
   getDocumentChunks,
   listDocuments,
   previewDocument,
@@ -62,6 +63,7 @@ function formatBytes(bytes: number): string {
 const AppDocuments = () => {
   const params = useParams<{ profileId: string }>();
   const profileId = params.profileId;
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +131,23 @@ const AppDocuments = () => {
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    const loadProfileName = async () => {
+      if (!profileId) {
+        return;
+      }
+
+      try {
+        const profile = await getProfile(profileId);
+        setProfileName(profile.name);
+      } catch {
+        setProfileName(null);
+      }
+    };
+
+    void loadProfileName();
+  }, [profileId]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -292,7 +311,7 @@ const AppDocuments = () => {
             Quản lý Tài liệu
           </h1>
           <p className="text-muted-foreground">
-            Kho tri thức cho trợ lý: {profileId}
+            Kho tri thức cho trợ lý: {profileName ?? "Đang tải tên trợ lý..."}
           </p>
         </div>
 

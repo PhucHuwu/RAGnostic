@@ -327,11 +327,21 @@ class DatabaseStore:
         stmt = select(ChatSessionDB).where(
             ChatSessionDB.profile_id == profile_id,
             ChatSessionDB.user_id == user_id,
+            ChatSessionDB.status != "DELETED",
         )
+        stmt = stmt.order_by(ChatSessionDB.updated_at.desc(), ChatSessionDB.started_at.desc())
         return list(db.scalars(stmt).all())
 
     def get_chat_session(self, db: Session, session_id: str) -> ChatSessionDB | None:
         return db.get(ChatSessionDB, session_id)
+
+    def soft_delete_chat_session(self, db: Session, session_id: str) -> None:
+        session = db.get(ChatSessionDB, session_id)
+        if session is None:
+            raise ValueError("Session not found")
+        session.status = "DELETED"
+        session.updated_at = _utcnow()
+        db.commit()
 
     def add_message(
         self,

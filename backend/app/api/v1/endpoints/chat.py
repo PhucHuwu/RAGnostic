@@ -100,7 +100,7 @@ def list_messages(
     cursor: int | None = Query(default=None, ge=0),
 ) -> dict:
     session = store.get_chat_session(db, session_id)
-    if session is None:
+    if session is None or session.status == "DELETED":
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
     if session.user_id != current_user.id:
         raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
@@ -124,7 +124,7 @@ def send_message(
     db: DbSession,
 ) -> dict:
     session = store.get_chat_session(db, session_id)
-    if session is None:
+    if session is None or session.status == "DELETED":
         raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
     if session.user_id != current_user.id:
         raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
@@ -241,3 +241,20 @@ def send_message(
             "llm_model": usage.get("model"),
         },
     }
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(
+    session_id: str,
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict:
+    session = store.get_chat_session(db, session_id)
+    if session is None or session.status == "DELETED":
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
+    if session.user_id != current_user.id:
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+
+    store.soft_delete_chat_session(db, session_id)
+    return {"message": "Session deleted"}

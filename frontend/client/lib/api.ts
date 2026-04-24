@@ -400,6 +400,12 @@ export function createChatSession(profileId: string, title: string) {
   });
 }
 
+export function deleteChatSession(sessionId: string) {
+  return apiRequest<{ message: string }>(`/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+}
+
 export function listMessages(sessionId: string) {
   return apiRequest<{
     items: ChatMessageResponse[];
