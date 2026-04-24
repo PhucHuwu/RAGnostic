@@ -11,6 +11,7 @@ from app.schemas.chat import (
     ChatMessageSendRequest,
     ChatSessionCreateRequest,
     ChatSessionResponse,
+    ChatSessionUpdateRequest,
 )
 from app.services.rag import (
     bm25_rerank,
@@ -258,3 +259,30 @@ def delete_session(
 
     store.soft_delete_chat_session(db, session_id)
     return {"message": "Session deleted"}
+
+
+@router.patch("/sessions/{session_id}")
+def update_session(
+    session_id: str,
+    payload: ChatSessionUpdateRequest,
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ChatSessionResponse:
+    session = store.get_chat_session(db, session_id)
+    if session is None or session.status == "DELETED":
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
+    if session.user_id != current_user.id:
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+
+    title = payload.title.strip()
+    if not title:
+        raise_api_error(
+            request,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "VALIDATION_ERROR",
+            "Title must not be empty",
+        )
+
+    updated = store.update_chat_session_title(db, session_id, title)
+    return _to_chat_session_response(updated)

@@ -439,6 +439,13 @@ export function deleteChatSession(sessionId: string) {
   });
 }
 
+export function updateChatSessionTitle(sessionId: string, title: string) {
+  return apiRequest<ChatSessionResponse>(`/sessions/${sessionId}`, {
+    method: "PATCH",
+    body: { title },
+  });
+}
+
 export function listMessages(sessionId: string) {
   return apiRequest<{
     items: ChatMessageResponse[];

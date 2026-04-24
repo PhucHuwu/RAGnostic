@@ -7,6 +7,10 @@ class ChatSessionCreateRequest(BaseModel):
     title: str = Field(default="New Chat", min_length=1, max_length=200)
 
 
+class ChatSessionUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+
+
 class ChatSessionResponse(BaseModel):
     id: str
     profile_id: str

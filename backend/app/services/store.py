@@ -350,6 +350,16 @@ class DatabaseStore:
         session.updated_at = _utcnow()
         db.commit()
 
+    def update_chat_session_title(self, db: Session, session_id: str, title: str) -> ChatSessionDB:
+        session = db.get(ChatSessionDB, session_id)
+        if session is None:
+            raise ValueError("Session not found")
+        session.title = title
+        session.updated_at = _utcnow()
+        db.commit()
+        db.refresh(session)
+        return session
+
     def add_message(
         self,
         db: Session,

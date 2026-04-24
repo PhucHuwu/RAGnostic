@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -12,9 +12,9 @@ import {
 import {
   Brain,
   Briefcase,
+  CirclePlus,
   ChevronsLeft,
   ChevronsRight,
-  FileText,
   LogOut,
   Menu,
   Settings,
@@ -53,7 +53,7 @@ const USER_SIDEBAR_COLLAPSED_KEY = "ragnostic.ui.userSidebarCollapsed";
 const USER_NAV_ITEMS: NavigationItem[] = [
   {
     href: "/app/profiles/new",
-    icon: <FileText className="w-5 h-5 shrink-0" />,
+    icon: <CirclePlus className="w-5 h-5 shrink-0" />,
     label: "Tạo trợ lý mới",
     isActive: (path) => path === "/app/profiles/new",
   },
@@ -114,32 +114,43 @@ const UserLayout = ({ children }: UserLayoutProps) => {
     }
   }, [isSidebarCollapsed]);
 
-  useEffect(() => {
-    const loadProfiles = async () => {
-      setIsProfilesLoading(true);
-      setProfilesError(null);
-      try {
-        const data = await listProfiles();
-        setProfiles(
-          data.map((item: ProfileResponse) => ({
-            id: item.id,
-            name: item.name,
-            iconName: item.icon_name,
-          })),
-        );
-      } catch (error) {
-        if (error instanceof ApiError) {
-          setProfilesError(error.message);
-        } else {
-          setProfilesError("Không thể tải danh sách trợ lý");
-        }
-      } finally {
-        setIsProfilesLoading(false);
+  const loadProfiles = useCallback(async () => {
+    setIsProfilesLoading(true);
+    setProfilesError(null);
+    try {
+      const data = await listProfiles();
+      setProfiles(
+        data.map((item: ProfileResponse) => ({
+          id: item.id,
+          name: item.name,
+          iconName: item.icon_name,
+        })),
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setProfilesError(error.message);
+      } else {
+        setProfilesError("Không thể tải danh sách trợ lý");
       }
+    } finally {
+      setIsProfilesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProfiles();
+  }, [loadProfiles]);
+
+  useEffect(() => {
+    const handleProfilesUpdated = () => {
+      void loadProfiles();
     };
 
-    void loadProfiles();
-  }, []);
+    window.addEventListener("ragnostic:profiles-updated", handleProfilesUpdated);
+    return () => {
+      window.removeEventListener("ragnostic:profiles-updated", handleProfilesUpdated);
+    };
+  }, [loadProfiles]);
 
   const handleLogout = async () => {
     if (isLoggingOut) {
