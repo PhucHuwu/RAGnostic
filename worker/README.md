@@ -6,11 +6,9 @@ Async ingest worker skeleton for document pipeline:
 2. chunk
 3. index
 
-## Run
+## Run with uvx
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-python -m worker_app.main
+uvx --from pip pip --python .venv/bin/python install -e ".[dev]"
+.venv/bin/python -m worker_app.main
 ```

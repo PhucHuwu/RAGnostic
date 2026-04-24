@@ -1,6 +1,6 @@
 # BFF
 
-Express Backend-for-Frontend skeleton.
+Express Backend-for-Frontend service.
 
 ## Run
 
@@ -8,3 +8,5 @@ Express Backend-for-Frontend skeleton.
 npm install
 npm run dev
 ```
+
+Health endpoint: `http://localhost:4000/health`
