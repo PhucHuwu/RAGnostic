@@ -12,7 +12,6 @@ import {
   Plus,
   Search,
   Send,
-  Trash2,
 } from "lucide-react";
 import UserLayout from "@/components/layouts/UserLayout";
 import { ApiErrorState } from "@/components/common/api-state";
@@ -359,47 +358,53 @@ const AppChat = () => {
     setError(null);
     setDocumentsError(null);
 
-    let uploadedCount = 0;
-    const failedFileMessages: string[] = [];
+    try {
+      let uploadedCount = 0;
+      const failedFileMessages: string[] = [];
 
-    for (const file of selectedFiles) {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      if (!ALLOWED_EXTS.has(ext)) {
-        failedFileMessages.push(`${file.name}: định dạng không hỗ trợ`);
-        continue;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        failedFileMessages.push(`${file.name}: vượt quá 10MB`);
-        continue;
-      }
+      for (const file of selectedFiles) {
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+        if (!ALLOWED_EXTS.has(ext)) {
+          failedFileMessages.push(`${file.name}: định dạng không hỗ trợ`);
+          continue;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          failedFileMessages.push(`${file.name}: vượt quá 10MB`);
+          continue;
+        }
 
-      try {
-        await uploadDocument(profileId, file);
-        uploadedCount += 1;
-      } catch (err) {
-        if (err instanceof ApiError) {
-          failedFileMessages.push(`${file.name}: ${err.message}`);
-        } else {
-          failedFileMessages.push(`${file.name}: upload thất bại`);
+        try {
+          await uploadDocument(profileId, file);
+          uploadedCount += 1;
+        } catch (err) {
+          if (err instanceof ApiError) {
+            failedFileMessages.push(`${file.name}: ${err.message}`);
+          } else {
+            failedFileMessages.push(`${file.name}: upload thất bại`);
+          }
         }
       }
+
+      const firstFailure = failedFileMessages[0];
+      if (uploadedCount === 0) {
+        setDocumentsError(
+          firstFailure
+            ? `Không thể tải lên tài liệu: ${firstFailure}`
+            : "Không có tệp nào được chọn.",
+        );
+        return;
+      }
+
+      await loadDocuments();
+
+      if (firstFailure) {
+        setDocumentsError(
+          `Đã tải lên ${uploadedCount} tài liệu, ${failedFileMessages.length} tệp lỗi. ${firstFailure}`,
+        );
+      }
+    } finally {
+      setIsUploadingDocuments(false);
     }
-
-    if (uploadedCount === 0) {
-      setDocumentsError(
-        failedFileMessages.length > 0
-          ? `Không thể tải lên tài liệu: ${failedFileMessages[0]}`
-          : "Không có tệp nào được chọn.",
-      );
-    } else if (failedFileMessages.length > 0) {
-      setDocumentsError(
-        `Đã tải lên ${uploadedCount} tài liệu, ${failedFileMessages.length} tệp lỗi. Ví dụ: ${failedFileMessages[0]}`,
-      );
-    }
-
-    await loadDocuments();
-
-    setIsUploadingDocuments(false);
   };
 
   const handleDeleteDocument = async (documentId: string) => {
@@ -593,14 +598,9 @@ const AppChat = () => {
               <button
                 onClick={() => void handleDeleteDocument(doc.id)}
                 disabled={deletingDocumentId === doc.id}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                className="text-[11px] px-2 py-1 rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0"
               >
-                {deletingDocumentId === doc.id ? (
-                  <Loader className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Trash2 className="w-3 h-3" />
-                )}
-                Xóa
+                {deletingDocumentId === doc.id ? "Đang xóa..." : "Xóa"}
               </button>
             </div>
           ))

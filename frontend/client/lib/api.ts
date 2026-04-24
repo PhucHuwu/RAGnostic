@@ -40,6 +40,7 @@ interface RequestOptions {
   headers?: Record<string, string>;
   auth?: boolean;
   isFormData?: boolean;
+  timeoutMs?: number;
 }
 
 async function refreshAccessToken() {
@@ -77,6 +78,7 @@ export async function apiRequest<T>(
     headers = {},
     auth = true,
     isFormData = false,
+    timeoutMs,
   } = options;
 
   const requestHeaders: Record<string, string> = { ...headers };
@@ -97,12 +99,39 @@ export async function apiRequest<T>(
       : JSON.stringify(body)
     : undefined;
 
-  const runRequest = async () =>
-    fetch(joinUrl(path), {
-      method,
-      headers: requestHeaders,
-      body: requestBody,
-    });
+  const runRequest = async () => {
+    const controller = timeoutMs ? new AbortController() : undefined;
+    const timeoutId =
+      timeoutMs && controller
+        ? setTimeout(() => controller.abort(), timeoutMs)
+        : undefined;
+
+    try {
+      return await fetch(joinUrl(path), {
+        method,
+        headers: requestHeaders,
+        body: requestBody,
+        signal: controller?.signal,
+      });
+    } catch (error) {
+      if (
+        timeoutMs &&
+        error instanceof DOMException &&
+        error.name === "AbortError"
+      ) {
+        throw new ApiError(
+          "Yeu cau qua thoi gian cho phep, vui long thu lai voi tep nho hon.",
+          408,
+          "REQUEST_TIMEOUT",
+        );
+      }
+      throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  };
 
   let response = await runRequest();
 
@@ -374,6 +403,7 @@ export function uploadDocument(profileId: string, file: File) {
       method: "POST",
       body: formData,
       isFormData: true,
+      timeoutMs: 120000,
     },
   );
 }
