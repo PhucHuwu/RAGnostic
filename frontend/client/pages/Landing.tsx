@@ -83,7 +83,7 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-card/50">
+      <section id="tinh-nang" className="py-24 px-4 sm:px-6 lg:px-8 bg-card/50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-display font-bold mb-4">
@@ -116,7 +116,7 @@ const Landing = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8">
+      <section id="cach-hoat-dong" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-display font-bold mb-4">
@@ -155,7 +155,7 @@ const Landing = () => {
       </section>
 
       {/* Social Proof Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 bg-card/50">
+      <section id="khach-hang" className="py-24 px-4 sm:px-6 lg:px-8 bg-card/50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-display font-bold mb-4">
@@ -190,7 +190,10 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <section
+        id="bat-dau"
+        className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
+      >
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/20 rounded-full blur-3xl"></div>
         </div>
@@ -233,27 +236,27 @@ const Landing = () => {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
                   <a
-                    href="#"
+                    href="#tinh-nang"
                     className="hover:text-foreground transition-colors"
                   >
                     Tính năng
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/pricing"
                     className="hover:text-foreground transition-colors"
                   >
-                    Giá cả
-                  </a>
+                    Bắt đầu
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/docs"
                     className="hover:text-foreground transition-colors"
                   >
                     Tài liệu
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -261,28 +264,28 @@ const Landing = () => {
               <h4 className="font-semibold font-display mb-4">Công ty</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/about"
                     className="hover:text-foreground transition-colors"
                   >
                     Về chúng tôi
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/blog"
                     className="hover:text-foreground transition-colors"
                   >
                     Blog
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/contact"
                     className="hover:text-foreground transition-colors"
                   >
                     Liên hệ
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -290,43 +293,58 @@ const Landing = () => {
               <h4 className="font-semibold font-display mb-4">Pháp lý</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/terms"
                     className="hover:text-foreground transition-colors"
                   >
                     Điều khoản sử dụng
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/privacy"
                     className="hover:text-foreground transition-colors"
                   >
                     Chính sách riêng tư
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/security"
                     className="hover:text-foreground transition-colors"
                   >
                     Bảo mật
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>
           </div>
 
           <div className="border-t border-border pt-8 flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground">
-            <p>&copy; 2024 RAGnostic. Bảo lưu mọi quyền.</p>
+            <p>&copy; 2026 RAGnostic. Bảo lưu mọi quyền.</p>
             <div className="flex gap-6 mt-4 sm:mt-0">
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a
+                href="https://x.com"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
                 Twitter
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
                 GitHub
               </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              <a
+                href="https://www.linkedin.com"
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-foreground transition-colors"
+              >
                 LinkedIn
               </a>
             </div>

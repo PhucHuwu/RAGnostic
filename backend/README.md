@@ -4,7 +4,23 @@ FastAPI service for RAGnostic.
 
 ## Contents
 
+- [Infrastructure services](#infrastructure-services)
 - [Run with uvx](#run-with-uvx)
+
+## Infrastructure services
+
+Start required services from the repository root before running backend:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+```
+
+Service endpoints:
+
+- Postgres (pgvector): `localhost:5435`
+- Redis: `localhost:6380`
+- MinIO API: `localhost:9000`
+- MinIO Console: `localhost:9001`
 
 ## Run with uvx
 

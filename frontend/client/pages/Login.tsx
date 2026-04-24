@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, login } from "@/lib/api";
 import { setAuthSession } from "@/lib/auth";
 
@@ -20,6 +20,7 @@ import type { LucideIcon } from "lucide-react";
 
 const Login = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -48,9 +49,15 @@ const Login = () => {
           role: response.user.role,
         },
       });
-      router.push(
-        response.user.role === "ADMIN" ? "/admin/users" : "/app/profiles",
-      );
+      const fallbackPath =
+        response.user.role === "ADMIN" ? "/admin/users" : "/app/profiles";
+      const requestedPath = searchParams.get("next");
+      const canUseRequestedPath =
+        typeof requestedPath === "string" &&
+        requestedPath.startsWith("/") &&
+        !requestedPath.startsWith("/admin") === (response.user.role !== "ADMIN");
+
+      router.push(canUseRequestedPath ? requestedPath : fallbackPath);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -154,7 +161,7 @@ const Login = () => {
                 <span className="text-muted-foreground">Ghi nhớ tôi</span>
               </label>
               <a
-                href="#"
+                href="mailto:support@ragnostic.io?subject=Yeu%20cau%20ho%20tro%20khoi%20phuc%20tai%20khoan"
                 className="text-primary hover:text-primary/80 transition-colors"
               >
                 Quên mật khẩu?
@@ -243,13 +250,13 @@ const Login = () => {
             <p className="text-sm text-muted-foreground mb-4">
               Bạn không có tài khoản?
             </p>
-            <a
-              href="#"
+            <Link
+              href="/register"
               className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary/80 transition-colors"
             >
               Yêu cầu truy cập
               <ArrowRight className="w-4 h-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>

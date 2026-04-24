@@ -1,5 +1,10 @@
 import AppProfileNew from "../../../../client/pages/AppProfileNew";
+import ClientRouteGuard from "../../../../client/components/auth/ClientRouteGuard";
 
 export default function AppProfileNewPage() {
-  return <AppProfileNew />;
+  return (
+    <ClientRouteGuard mode="protected" requiredRole="USER">
+      <AppProfileNew />
+    </ClientRouteGuard>
+  );
 }

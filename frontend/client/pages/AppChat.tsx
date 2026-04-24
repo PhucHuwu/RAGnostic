@@ -6,7 +6,7 @@ import {
   AlertCircle,
   Loader,
   MessageSquare,
-  MoreVertical,
+  PanelLeft,
   Plus,
   Search,
   Send,
@@ -15,8 +15,15 @@ import UserLayout from "@/components/layouts/UserLayout";
 import { ApiErrorState } from "@/components/common/api-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   ApiError,
   createChatSession,
+  getProfile,
   listChatSessions,
   listMessages,
   sendMessage,
@@ -70,10 +77,12 @@ const AppChat = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isSessionsOpen, setIsSessionsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -128,6 +137,23 @@ const AppChat = () => {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  useEffect(() => {
+    const loadProfileName = async () => {
+      if (!profileId) {
+        return;
+      }
+
+      try {
+        const profile = await getProfile(profileId);
+        setProfileName(profile.name);
+      } catch {
+        setProfileName(null);
+      }
+    };
+
+    void loadProfileName();
+  }, [profileId]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -249,82 +275,99 @@ const AppChat = () => {
 
   const currentSession = sessions.find((s) => s.id === activeSessionId);
 
+  const closeSessionsDrawer = () => setIsSessionsOpen(false);
+
+  const sessionsPanel = (isMobile = false) => (
+    <div className="flex h-full flex-col bg-card rounded-xl border border-border overflow-hidden">
+      <div className="p-4 border-b border-border space-y-3">
+        <button
+          onClick={handleCreateSession}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Phiên mới
+        </button>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Tìm phiên..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-2 space-y-2">
+          {isBootstrapping ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Đang tải phiên...
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Không tìm thấy phiên nào
+            </div>
+          ) : (
+            filteredSessions.map((session) => (
+              <button
+                key={session.id}
+                onClick={() => {
+                  setActiveSessionId(session.id);
+                  if (isMobile) {
+                    closeSessionsDrawer();
+                  }
+                }}
+                className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  activeSessionId === session.id
+                    ? "bg-primary/10 border border-primary/30"
+                    : "hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate text-sm">
+                      {session.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {session.messageCount} tin nhắn
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <UserLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
-        <div className="lg:col-span-1 flex flex-col bg-card rounded-xl border border-border overflow-hidden">
-          <div className="p-4 border-b border-border">
-            <button
-              onClick={handleCreateSession}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Phiên mới
-            </button>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 h-[calc(100dvh-112px)] sm:h-[calc(100dvh-128px)] lg:h-[calc(100vh-200px)] -mx-4 sm:mx-0">
+        <div className="hidden lg:block lg:col-span-1">{sessionsPanel()}</div>
 
-          <div className="px-4 py-3 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Tìm phiên..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-2 space-y-2">
-              {isBootstrapping ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  Đang tải phiên...
-                </div>
-              ) : filteredSessions.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  Không tìm thấy phiên nào
-                </div>
-              ) : (
-                filteredSessions.map((session) => (
-                  <button
-                    key={session.id}
-                    onClick={() => setActiveSessionId(session.id)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors group ${
-                      activeSessionId === session.id
-                        ? "bg-primary/10 border border-primary/30"
-                        : "hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate text-sm">
-                          {session.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {session.messageCount} tin nhắn
-                        </p>
-                      </div>
-                      <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all">
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-3 flex flex-col bg-card rounded-xl border border-border overflow-hidden">
+        <div className="lg:col-span-3 flex flex-col bg-card rounded-none sm:rounded-xl border-y sm:border border-border overflow-hidden">
           <div className="p-4 border-b border-border bg-card/50">
-            <h2 className="font-display font-bold text-lg text-foreground">
-              {currentSession?.title || "Chat"}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Profile ID: {profileId}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display font-bold text-lg text-foreground">
+                  {currentSession?.title || "Chat"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Trợ lý: {profileName ?? "Đang tải tên trợ lý..."}
+                </p>
+              </div>
+              <button
+                onClick={() => setIsSessionsOpen(true)}
+                className="lg:hidden inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors"
+              >
+                <PanelLeft className="w-4 h-4" />
+                Phiên chat
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -337,7 +380,7 @@ const AppChat = () => {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             {isBootstrapping
               ? Array.from({ length: 4 }).map((_, idx) => (
                   <div key={idx} className="flex gap-3">
@@ -366,7 +409,7 @@ const AppChat = () => {
                     </div>
 
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                      className={`max-w-[85%] lg:max-w-md px-4 py-3 rounded-lg ${
                         message.role === "user"
                           ? "bg-primary text-white rounded-br-none"
                           : "bg-muted text-foreground rounded-bl-none"
@@ -410,7 +453,7 @@ const AppChat = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t border-border bg-card/50">
+          <div className="p-3 sm:p-4 border-t border-border bg-card/50">
             <div className="flex gap-3">
               <input
                 type="text"
@@ -429,7 +472,7 @@ const AppChat = () => {
               <button
                 onClick={() => void handleSendMessage()}
                 disabled={isLoading || !inputValue.trim() || !activeSessionId}
-                className="px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 sm:px-6 py-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isLoading ? (
                   <Loader className="w-4 h-4 animate-spin" />
@@ -441,6 +484,15 @@ const AppChat = () => {
           </div>
         </div>
       </div>
+
+      <Sheet open={isSessionsOpen} onOpenChange={setIsSessionsOpen}>
+        <SheetContent side="left" className="w-[88vw] max-w-sm p-0">
+          <SheetHeader className="px-4 py-3 border-b border-border">
+            <SheetTitle>Danh sách phiên chat</SheetTitle>
+          </SheetHeader>
+          <div className="h-[calc(100dvh-64px)] p-3">{sessionsPanel(true)}</div>
+        </SheetContent>
+      </Sheet>
     </UserLayout>
   );
 };

@@ -7,6 +7,7 @@ import UserLayout from "@/components/layouts/UserLayout";
 import { ApiError, getProfile, updateProfile } from "@/lib/api";
 import { ApiErrorState } from "@/components/common/api-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type FormState = {
   name: string;
@@ -190,171 +191,187 @@ const AppProfileDetails = () => {
           onSubmit={handleSubmit}
           className="space-y-6 rounded-xl border border-border bg-card p-6"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-semibold mb-2 text-foreground"
-              >
-                Tên profile
-              </label>
-              <input
-                id="name"
-                value={form.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                maxLength={120}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
+          <Tabs defaultValue="assistant-info" className="space-y-6">
+            <TabsList className="h-auto p-1 w-full sm:w-auto flex">
+              <TabsTrigger value="assistant-info" className="flex-1 sm:flex-none">
+                Thông tin trợ lý
+              </TabsTrigger>
+              <TabsTrigger value="advanced-settings" className="flex-1 sm:flex-none">
+                Thiết lập nâng cao
+              </TabsTrigger>
+            </TabsList>
 
-            <div>
-              <label
-                htmlFor="topic"
-                className="block text-sm font-semibold mb-2 text-foreground"
-              >
-                Chủ đề
-              </label>
-              <input
-                id="topic"
-                value={form.topic}
-                onChange={(e) => updateField("topic", e.target.value)}
-                maxLength={240}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-          </div>
+            <TabsContent value="assistant-info" className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-semibold mb-2 text-foreground"
+                  >
+                    Tên trợ lý
+                  </label>
+                  <input
+                    id="name"
+                    value={form.name}
+                    onChange={(e) => updateField("name", e.target.value)}
+                    maxLength={120}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
 
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-semibold mb-2 text-foreground"
-            >
-              Mô tả
-            </label>
-            <textarea
-              id="description"
-              rows={4}
-              value={form.description}
-              onChange={(e) => updateField("description", e.target.value)}
-              maxLength={2000}
-              className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
-          </div>
+                <div>
+                  <label
+                    htmlFor="topic"
+                    className="block text-sm font-semibold mb-2 text-foreground"
+                  >
+                    Lĩnh vực hỗ trợ
+                  </label>
+                  <input
+                    id="topic"
+                    value={form.topic}
+                    onChange={(e) => updateField("topic", e.target.value)}
+                    maxLength={240}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Chunk size
-              </label>
-              <input
-                type="number"
-                min={100}
-                max={10000}
-                value={form.chunkSize}
-                onChange={(e) =>
-                  updateField("chunkSize", Number(e.target.value))
-                }
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Chunk overlap
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={2000}
-                value={form.chunkOverlap}
-                onChange={(e) =>
-                  updateField("chunkOverlap", Number(e.target.value))
-                }
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Top K
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={form.topK}
-                onChange={(e) => updateField("topK", Number(e.target.value))}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Rerank top N
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={form.rerankTopN}
-                onChange={(e) =>
-                  updateField("rerankTopN", Number(e.target.value))
-                }
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Temperature
-              </label>
-              <input
-                type="number"
-                step={0.1}
-                min={0}
-                max={2}
-                value={form.temperature}
-                onChange={(e) =>
-                  updateField("temperature", Number(e.target.value))
-                }
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Chunk strategy
-              </label>
-              <input
-                value={form.chunkStrategy}
-                onChange={(e) => updateField("chunkStrategy", e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-foreground">
-                Model override
-              </label>
-              <input
-                value={form.modelOverride}
-                onChange={(e) => updateField("modelOverride", e.target.value)}
-                placeholder="vd: gpt-4o-mini"
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
-              />
-            </div>
-            <div className="flex items-end">
-              <label className="inline-flex items-center gap-3 text-sm font-semibold text-foreground">
-                <input
-                  type="checkbox"
-                  checked={form.isActive}
-                  onChange={(e) => updateField("isActive", e.target.checked)}
-                  className="w-4 h-4"
+              <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-semibold mb-2 text-foreground"
+                >
+                  Mô tả vai trò trợ lý
+                </label>
+                <textarea
+                  id="description"
+                  rows={4}
+                  value={form.description}
+                  onChange={(e) => updateField("description", e.target.value)}
+                  maxLength={2000}
+                  className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
-                Profile đang hoạt động
-              </label>
-            </div>
-          </div>
+              </div>
+
+              <div>
+                <label className="inline-flex items-center gap-3 text-sm font-semibold text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={form.isActive}
+                    onChange={(e) => updateField("isActive", e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  Trợ lý đang hoạt động
+                </label>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="advanced-settings" className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Model override
+                  </label>
+                  <input
+                    value={form.modelOverride}
+                    onChange={(e) => updateField("modelOverride", e.target.value)}
+                    placeholder="vd: gpt-4o-mini"
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Chunk strategy
+                  </label>
+                  <input
+                    value={form.chunkStrategy}
+                    onChange={(e) => updateField("chunkStrategy", e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Chunk size
+                  </label>
+                  <input
+                    type="number"
+                    min={100}
+                    max={10000}
+                    value={form.chunkSize}
+                    onChange={(e) =>
+                      updateField("chunkSize", Number(e.target.value))
+                    }
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Chunk overlap
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={2000}
+                    value={form.chunkOverlap}
+                    onChange={(e) =>
+                      updateField("chunkOverlap", Number(e.target.value))
+                    }
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Top K
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={form.topK}
+                    onChange={(e) => updateField("topK", Number(e.target.value))}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Rerank top N
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={form.rerankTopN}
+                    onChange={(e) =>
+                      updateField("rerankTopN", Number(e.target.value))
+                    }
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-foreground">
+                    Temperature
+                  </label>
+                  <input
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    max={2}
+                    value={form.temperature}
+                    onChange={(e) =>
+                      updateField("temperature", Number(e.target.value))
+                    }
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
 
           <div className="flex justify-end">
             <button
