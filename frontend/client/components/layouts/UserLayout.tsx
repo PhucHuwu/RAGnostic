@@ -39,14 +39,14 @@ const PROFILE_DETAIL_PATTERN = /^\/app\/profiles\/[^/]+(?:\/(chat|documents))?$/
 const USER_NAV_ITEMS: NavigationItem[] = [
   {
     href: "/app/profiles",
-    icon: <Briefcase className="w-5 h-5" />,
+    icon: <Briefcase className="w-5 h-5 shrink-0" />,
     label: "Trợ lý AI của tôi",
     isActive: (path) =>
       path === "/app/profiles" || PROFILE_DETAIL_PATTERN.test(path),
   },
   {
     href: "/app/profiles/new",
-    icon: <FileText className="w-5 h-5" />,
+    icon: <FileText className="w-5 h-5 shrink-0" />,
     label: "Tạo trợ lý mới",
     isActive: (path) => path === "/app/profiles/new",
   },
@@ -146,14 +146,16 @@ const UserLayout = ({ children }: UserLayoutProps) => {
           }`}
         >
           <div className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p
-                className={`text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap overflow-hidden transition-all duration-200 ${
-                  isSidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100"
-                }`}
-              >
-                Không gian làm việc
-              </p>
+            <div
+              className={`flex items-center mb-3 ${
+                isSidebarCollapsed ? "justify-center" : "justify-between"
+              }`}
+            >
+              {!isSidebarCollapsed && (
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+                  Không gian làm việc
+                </p>
+              )}
               <button
                 onClick={() => setIsSidebarCollapsed((prev) => !prev)}
                 className="h-8 w-8 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
@@ -183,42 +185,34 @@ const UserLayout = ({ children }: UserLayoutProps) => {
 
           <div className="mt-auto p-5 border-t border-border space-y-2">
             <button
-              className={`w-full flex items-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors ${
+              className={`flex items-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors ${
                 isSidebarCollapsed
-                  ? "justify-center p-0 h-11 w-11 mx-auto"
-                  : "gap-3 px-4 py-3"
+                  ? "justify-center p-0 h-11 w-11"
+                  : "w-full h-11 gap-3 px-3"
               }`}
               title="Thiết lập"
               aria-label="Thiết lập"
             >
-              <Settings className="w-5 h-5" />
-              <span
-                className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${
-                  isSidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
-                }`}
-              >
-                Thiết lập
-              </span>
+              <Settings className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && <span className="whitespace-nowrap">Thiết lập</span>}
             </button>
             <button
               onClick={() => void handleLogout()}
               disabled={isLoggingOut}
-              className={`w-full flex items-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 ${
+              className={`flex items-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 ${
                 isSidebarCollapsed
-                  ? "justify-center p-0 h-11 w-11 mx-auto"
-                  : "gap-3 px-4 py-3"
+                  ? "justify-center p-0 h-11 w-11"
+                  : "w-full h-11 gap-3 px-3"
               }`}
               title={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
               aria-label={isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
             >
-              <LogOut className="w-5 h-5" />
-              <span
-                className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${
-                  isSidebarCollapsed ? "max-w-0 opacity-0" : "max-w-[140px] opacity-100"
-                }`}
-              >
-                {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
-              </span>
+              <LogOut className="w-5 h-5 shrink-0" />
+              {!isSidebarCollapsed && (
+                <span className="whitespace-nowrap">
+                  {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+                </span>
+              )}
             </button>
           </div>
         </aside>
@@ -255,7 +249,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
 
           <div className="mt-auto border-t border-border p-5 space-y-2">
             <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border text-foreground hover:bg-muted/40 transition-colors">
-              <UserCircle2 className="w-5 h-5" />
+              <UserCircle2 className="w-5 h-5 shrink-0" />
               <span>{currentUser?.username ?? "Người dùng"}</span>
             </button>
             <button
@@ -263,7 +257,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
               disabled={isLoggingOut}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5 shrink-0" />
               <span>{isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
             </button>
           </div>
@@ -295,20 +289,16 @@ const NavLink = ({
     onClick={onNavigate}
     title={label}
     aria-label={label}
-    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+    className={`flex items-center rounded-lg h-11 transition-colors ${
       active
         ? "bg-sidebar-primary text-sidebar-primary-foreground"
         : "text-sidebar-foreground hover:bg-sidebar-accent/20"
-    } ${collapsed ? "justify-center p-0 h-11 w-11 mx-auto gap-0" : "gap-3"}`}
+    } ${collapsed ? "justify-center p-0 w-11 gap-0" : "px-3 gap-3"}`}
   >
-    {icon}
-    <span
-      className={`font-medium whitespace-nowrap overflow-hidden transition-all duration-200 ${
-        collapsed ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100"
-      }`}
-    >
-      {label}
+    <span className="w-5 h-5 shrink-0 inline-flex items-center justify-center">
+      {icon}
     </span>
+    {!collapsed && <span className="font-medium whitespace-nowrap">{label}</span>}
   </Link>
 );
 
