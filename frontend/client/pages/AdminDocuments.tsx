@@ -261,7 +261,7 @@ const AdminDocuments = () => {
               onChange={(e) => setProfileFilter(e.target.value)}
               className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
             >
-              <option value="">Tất cả profile</option>
+              <option value="">Tất cả trợ lý</option>
               {uniqueProfiles.map((profile) => (
                 <option key={profile} value={profile}>
                   {profile}

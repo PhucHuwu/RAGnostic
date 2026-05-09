@@ -373,8 +373,8 @@ const features = [
 
 const steps = [
   {
-    title: "Tạo Profile",
-    description: "Thiết lập một profile chatbot mới với tên và mô tả của bạn.",
+    title: "Tạo Trợ lý",
+    description: "Thiết lập một Trợ lý chatbot mới với tên và mô tả của bạn.",
   },
   {
     title: "Tải tài liệu",

@@ -143,7 +143,7 @@ class DatabaseStore:
         db: Session,
         user_id: str,
         name: str,
-        topic: str,
+        topic: str = "",
         description: str | None = None,
         icon_name: str = "bot",
     ) -> ChatbotProfileDB:

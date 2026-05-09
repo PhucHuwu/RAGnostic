@@ -51,7 +51,7 @@ const AppProfileDetails = () => {
         const data = await getProfile(profileId);
         setForm({
           name: data.name,
-          topic: data.topic,
+          topic: data.topic ?? "",
           description: data.description ?? "",
           modelOverride: data.model_override ?? "",
           chunkStrategy: data.chunk_strategy,
@@ -84,7 +84,7 @@ const AppProfileDetails = () => {
     if (!form) {
       return false;
     }
-    return form.name.trim().length > 0 && form.topic.trim().length > 0;
+    return form.name.trim().length > 0;
   }, [form]);
 
   const updateField = <K extends keyof FormState>(
@@ -106,7 +106,7 @@ const AppProfileDetails = () => {
     try {
       await updateProfile(profileId, {
         name: form.name.trim(),
-        topic: form.topic.trim(),
+        topic: form.topic.trim() || undefined,
         description: form.description.trim() || undefined,
         model_override: form.modelOverride.trim() || undefined,
         chunk_strategy: form.chunkStrategy,

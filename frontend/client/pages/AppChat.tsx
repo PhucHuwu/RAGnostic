@@ -471,10 +471,7 @@ const AppChat = () => {
     if (!assistantDraft) {
       return false;
     }
-    return (
-      assistantDraft.name.trim().length > 0 &&
-      assistantDraft.topic.trim().length > 0
-    );
+    return assistantDraft.name.trim().length > 0;
   }, [assistantDraft]);
 
   const handleSaveAssistant = async (event: React.FormEvent) => {
@@ -488,7 +485,7 @@ const AppChat = () => {
     try {
       const updated = await updateProfile(profileId, {
         name: assistantDraft.name.trim(),
-        topic: assistantDraft.topic.trim(),
+        topic: assistantDraft.topic.trim() || undefined,
         description: assistantDraft.description.trim() || undefined,
         icon_name: assistantDraft.iconName,
       });
@@ -496,7 +493,7 @@ const AppChat = () => {
       setProfileIconName(updated.icon_name);
       setAssistantDraft({
         name: updated.name,
-        topic: updated.topic,
+        topic: updated.topic ?? "",
         description: updated.description ?? "",
         iconName: updated.icon_name,
       });

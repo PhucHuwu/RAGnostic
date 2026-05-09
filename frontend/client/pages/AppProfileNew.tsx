@@ -56,8 +56,8 @@ const AppProfileNew = () => {
     if (submitLockRef.current) {
       return;
     }
-    if (!name.trim() || !topic.trim()) {
-      setError("Tên trợ lý và chủ đề là bắt buộc");
+    if (!name.trim()) {
+      setError("Tên trợ lý là bắt buộc");
       return;
     }
 
@@ -67,7 +67,7 @@ const AppProfileNew = () => {
     try {
       const created = await createProfile({
         name: name.trim(),
-        topic: topic.trim(),
+        topic: topic.trim() || undefined,
         description: description.trim() || undefined,
         icon_name: iconName,
       });
@@ -76,7 +76,7 @@ const AppProfileNew = () => {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError("Không thể tạo profile mới");
+        setError("Không thể tạo trợ lý mới");
       }
     } finally {
       submitLockRef.current = false;
@@ -90,10 +90,10 @@ const AppProfileNew = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground mb-2">
-              Tạo Profile mới
+              Tạo Trợ lý mới
             </h1>
             <p className="text-muted-foreground">
-              Tạo chatbot profile để cấu hình dữ liệu và trò chuyện theo domain.
+              Tạo chatbot Trợ lý để cấu hình dữ liệu và trò chuyện theo domain.
             </p>
           </div>
           <button
@@ -120,7 +120,7 @@ const AppProfileNew = () => {
               htmlFor="name"
               className="block text-sm font-semibold text-foreground mb-2"
             >
-              Tên trợ lý
+              Tên trợ lý (*)
             </label>
             <input
               id="name"
@@ -250,7 +250,7 @@ const AppProfileNew = () => {
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
               maxLength={2000}
-              placeholder="Mô tả mục tiêu, phạm vi dữ liệu và cách profile này nên trả lời"
+              placeholder="Mô tả mục tiêu, phạm vi dữ liệu và cách Trợ lý này nên trả lời"
               className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
             />
           </div>
@@ -266,7 +266,7 @@ const AppProfileNew = () => {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              Tạo profile
+              Tạo Trợ lý
             </button>
           </div>
         </form>

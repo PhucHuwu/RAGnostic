@@ -29,7 +29,7 @@ import {
 interface Profile {
   id: string;
   name: string;
-  topic: string;
+  topic: string | null;
   description: string;
   documentsCount: number;
   sessionsCount: number;
@@ -48,10 +48,10 @@ async function hydrateProfileStats(profiles: ProfileResponse[]) {
         listDocuments(profile.id).catch(() => []),
         listChatSessions(profile.id).catch(() => []),
       ]);
-      return {
-        id: profile.id,
-        name: profile.name,
-        topic: profile.topic,
+        return {
+          id: profile.id,
+          name: profile.name,
+          topic: profile.topic,
         description: profile.description ?? "Chưa có mô tả",
         documentsCount: documents.length,
         sessionsCount: sessions.length,
@@ -128,10 +128,10 @@ const AppProfiles = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground mb-2">
-              Danh sách Profile
+              Danh sách Trợ lý
             </h1>
             <p className="text-muted-foreground">
-              Quản lý tất cả các profile chatbot của bạn
+              Quản lý tất cả các Trợ lý chatbot của bạn
             </p>
           </div>
           <Link
@@ -174,10 +174,10 @@ const AppProfiles = () => {
                 <Zap className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-xl font-display font-bold mb-2">
-                Chưa có profile nào
+                Chưa có Trợ lý nào
               </h3>
               <p className="text-muted-foreground mb-6">
-                Bắt đầu bằng cách tạo profile đầu tiên để khởi động một chatbot
+                Bắt đầu bằng cách tạo Trợ lý đầu tiên để khởi động một chatbot
                 mới.
               </p>
               <Link
@@ -230,7 +230,7 @@ const AppProfiles = () => {
                           {profile.name}
                         </h3>
                         <p className="text-sm font-medium text-secondary">
-                          {profile.topic}
+                          {profile.topic?.trim() || "Chưa đặt chủ đề"}
                         </p>
                       </div>
                       <div
