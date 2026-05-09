@@ -1140,7 +1140,7 @@ const AppChat = () => {
               </button>
             </div>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              {profileName ?? "Trợ lý này"} là trí tuệ nhân tạo nên có thể mắc lỗi. Hãy kiểm tra các thông tin quan trọng.
+              Trợ lý {profileName ?? "này"} là trí tuệ nhân tạo nên có thể mắc lỗi. Hãy kiểm tra các thông tin quan trọng.
             </p>
           </div>
         </div>

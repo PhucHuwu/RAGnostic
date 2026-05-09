@@ -201,22 +201,6 @@ const Login = () => {
             </Link>
           </div>
 
-          {/* Demo Credentials */}
-          <div className="mt-8 p-4 rounded-lg bg-muted/30 border border-border/50">
-            <p className="text-xs font-medium text-muted-foreground mb-2">
-              Thông tin demo:
-            </p>
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>
-                <span className="font-mono">user</span> /{" "}
-                <span className="font-mono">password</span>
-              </p>
-              <p>
-                <span className="font-mono">admin</span> /{" "}
-                <span className="font-mono">password</span>
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -254,7 +238,7 @@ const Login = () => {
               href="/register"
               className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary/80 transition-colors"
             >
-              Yêu cầu truy cập
+              Đăng ký ngay
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

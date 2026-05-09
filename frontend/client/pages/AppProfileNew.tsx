@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import UserLayout from "@/components/layouts/UserLayout";
@@ -39,6 +39,7 @@ const AppProfileNew = () => {
   const [iconQuery, setIconQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitLockRef = useRef(false);
 
   const selectedIconLabel = useMemo(() => formatIconLabel(iconName), [iconName]);
   const filteredIconNames = useMemo(() => {
@@ -52,11 +53,15 @@ const AppProfileNew = () => {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (submitLockRef.current) {
+      return;
+    }
     if (!name.trim() || !topic.trim()) {
       setError("Tên trợ lý và chủ đề là bắt buộc");
       return;
     }
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     setError(null);
     try {
@@ -74,6 +79,7 @@ const AppProfileNew = () => {
         setError("Không thể tạo profile mới");
       }
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };

@@ -3,7 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Brain, Eye, EyeOff } from "lucide-react";
+import {
+  ArrowRight,
+  Brain,
+  Eye,
+  EyeOff,
+  FileText,
+  Shield,
+  Target,
+  Zap,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { ApiError, login, register } from "@/lib/api";
 import { setAuthSession } from "@/lib/auth";
 
@@ -93,8 +103,9 @@ const Register = () => {
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                placeholder="nhập tên đăng nhập"
                 disabled={isLoading}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -107,8 +118,9 @@ const Register = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="nhập email của bạn"
                 disabled={isLoading}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -125,13 +137,15 @@ const Register = () => {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="nhập mật khẩu"
                   disabled={isLoading}
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground pr-12 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all pr-12 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  disabled={isLoading}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -154,18 +168,28 @@ const Register = () => {
                 type={showPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="nhập lại mật khẩu"
                 disabled={isLoading}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isLoading ? "Đang xử lý..." : "Đăng ký"}
-              {!isLoading && <ArrowRight className="w-4 h-4" />}
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                  <span>Đang xử lý...</span>
+                </>
+              ) : (
+                <>
+                  <span>Đăng ký</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
@@ -181,9 +205,57 @@ const Register = () => {
         </div>
       </div>
 
-      <div className="hidden lg:flex items-center justify-center bg-card/50" />
+      <div className="hidden lg:flex flex-col items-center justify-center px-8 py-12 bg-card/50 relative overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-20 right-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-80 h-80 bg-secondary/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="max-w-md text-center animate-slide-up">
+          <div className="mb-8">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-ai flex items-center justify-center mx-auto mb-6">
+              <Brain className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-3xl font-display font-bold mb-4">Bắt đầu ngay</h2>
+            <p className="text-muted-foreground text-lg leading-relaxed">
+              Tạo tài khoản để sử dụng nền tảng RAGnostic và xây dựng ứng dụng
+              AI thông minh trên dữ liệu của bạn.
+            </p>
+          </div>
+
+          <div className="space-y-4 mt-12">
+            <Feature icon={FileText} text="Xử lý tài liệu tự động" />
+            <Feature icon={Shield} text="Bảo mật dữ liệu cao" />
+            <Feature icon={Zap} text="Truy vấn siêu nhanh" />
+            <Feature icon={Target} text="Kết quả chính xác" />
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-border">
+            <p className="text-sm text-muted-foreground mb-4">Đã có tài khoản?</p>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 font-semibold text-primary hover:text-primary/80 transition-colors"
+            >
+              Đăng nhập ngay
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+interface FeatureProps {
+  icon: LucideIcon;
+  text: string;
+}
+
+const Feature = ({ icon: Icon, text }: FeatureProps) => (
+  <div className="flex items-center gap-3 p-4 rounded-lg bg-background/50 border border-border/30 hover:border-secondary/30 transition-colors">
+    <Icon className="w-6 h-6 text-primary" />
+    <span className="font-medium">{text}</span>
+  </div>
+);
 
 export default Register;

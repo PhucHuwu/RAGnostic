@@ -1,4 +1,5 @@
 import Link from "next/link";
+import MarketingHeader from "@/components/marketing/MarketingHeader";
 
 interface ActionLink {
   label: string;
@@ -54,27 +55,7 @@ export default function StaticContentPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="font-display font-bold text-lg">
-            RAGnostic
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted/50 transition-colors"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-primary hover:bg-primary/90 transition-colors"
-            >
-              Bắt đầu
-            </Link>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader />
 
       <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="space-y-5 mb-8">

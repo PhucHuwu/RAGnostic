@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Sparkles,
@@ -8,35 +11,22 @@ import {
   Database,
   Gauge,
 } from "lucide-react";
+import MarketingHeader from "@/components/marketing/MarketingHeader";
+import { getCurrentUser, type AuthUser } from "@/lib/auth";
 
 const Landing = () => {
+  const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setSessionUser(getCurrentUser());
+  }, []);
+
+  const primaryHref =
+    sessionUser?.role === "ADMIN" ? "/admin/users" : "/app/profiles/new";
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-gradient-ai flex items-center justify-center">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold font-display">RAGnostic</span>
-          </div>
-          <div className="flex gap-4">
-            <Link
-              href="/login"
-              className="px-6 py-2 rounded-lg font-medium text-foreground hover:bg-muted/50 transition-colors"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              href="/login"
-              className="px-6 py-2 rounded-lg font-medium text-white bg-primary hover:bg-primary/90 transition-colors"
-            >
-              Bắt đầu
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <MarketingHeader fixed />
 
       {/* Hero Section */}
       <section className="pt-32 pb-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -68,16 +58,12 @@ const Landing = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/login"
+              href={sessionUser ? primaryHref : "/login"}
               className="inline-flex items-center justify-center px-8 py-4 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all hover:shadow-lg group"
             >
-              Bắt đầu ngay
+              {sessionUser ? "Tiếp tục ngay" : "Bắt đầu ngay"}
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <button className="inline-flex items-center justify-center px-8 py-4 rounded-lg font-semibold text-foreground border border-border hover:bg-muted/50 transition-colors">
-              Xem demo
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </button>
           </div>
         </div>
       </section>
@@ -145,7 +131,7 @@ const Landing = () => {
                     </p>
                   </div>
                 </div>
-                {index < steps.length - 1 && (
+                {index < steps.length && (
                   <div className="hidden md:block absolute top-6 left-32 w-8 h-0.5 bg-gradient-to-r from-primary to-transparent -ml-8"></div>
                 )}
               </div>
@@ -207,10 +193,10 @@ const Landing = () => {
             dụng AI thông minh.
           </p>
           <Link
-            href="/login"
+            href={sessionUser ? primaryHref : "/login"}
             className="inline-flex items-center justify-center px-10 py-4 rounded-lg font-semibold text-white bg-primary hover:bg-primary/90 transition-all hover:shadow-lg group"
           >
-            Bắt đầu miễn phí
+            {sessionUser ? "Vào ứng dụng" : "Bắt đầu miễn phí"}
             <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
@@ -324,25 +310,16 @@ const Landing = () => {
             <p>&copy; 2026 RAGnostic. Bảo lưu mọi quyền.</p>
             <div className="flex gap-6 mt-4 sm:mt-0">
               <a
-                href="https://x.com"
-                target="_blank"
-                rel="noreferrer"
                 className="hover:text-foreground transition-colors"
               >
                 Twitter
               </a>
               <a
-                href="https://github.com"
-                target="_blank"
-                rel="noreferrer"
                 className="hover:text-foreground transition-colors"
               >
                 GitHub
               </a>
               <a
-                href="https://www.linkedin.com"
-                target="_blank"
-                rel="noreferrer"
                 className="hover:text-foreground transition-colors"
               >
                 LinkedIn
