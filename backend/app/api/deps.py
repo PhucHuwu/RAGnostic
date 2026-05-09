@@ -70,7 +70,7 @@ def enforce_auth_rate_limit(key: str) -> None:
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "code": "RATE_LIMITED",
-                "message": "Too many authentication attempts",
+                "message": "Bạn thử xác thực quá nhiều lần, vui lòng thử lại sau",
                 "details": {"retry_after_seconds": _auth_rate_window_seconds},
                 "request_id": None,
             },
@@ -88,7 +88,7 @@ def get_current_user(
             request,
             status.HTTP_401_UNAUTHORIZED,
             "UNAUTHORIZED",
-            "Missing bearer token",
+            "Thiếu bearer token",
         )
 
     try:
@@ -106,18 +106,26 @@ def get_current_user(
             request,
             status.HTTP_401_UNAUTHORIZED,
             "UNAUTHORIZED",
-            "Invalid token type",
+            "Loại token không hợp lệ",
         )
 
     user_id = payload.get("sub")
     if not isinstance(user_id, str):
         raise_api_error(
-            request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Invalid token subject"
+            request,
+            status.HTTP_401_UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Thông tin người dùng trong token không hợp lệ",
         )
 
     user = store.get_user(db, user_id)
     if user is None:
-        raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "User not found")
+        raise_api_error(
+            request,
+            status.HTTP_401_UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Không tìm thấy người dùng",
+        )
     set_user_id(user.id)
     return user
 
@@ -131,7 +139,7 @@ def require_admin(current_user: CurrentUser) -> UserDB:
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "code": "FORBIDDEN",
-                "message": "Admin role required",
+                "message": "Yêu cầu quyền quản trị viên",
                 "details": None,
                 "request_id": None,
             },

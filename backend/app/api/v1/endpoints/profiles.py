@@ -62,9 +62,9 @@ def get_profile(
 ) -> ProfileResponse:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     return _to_profile_response(profile)
 
 
@@ -78,9 +78,9 @@ def update_profile(
 ) -> ProfileResponse:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     updates = payload.model_dump(exclude_unset=True)
     for field_name, value in updates.items():
@@ -100,9 +100,9 @@ def delete_profile(
 ) -> dict[str, str]:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     profile.deleted = True
     profile.updated_at = datetime.now(UTC)
     db.commit()

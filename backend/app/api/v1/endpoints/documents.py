@@ -51,9 +51,9 @@ async def upload_document(
 ) -> DocumentResponse:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     file_name = file.filename or "unnamed.txt"
     file_ext = Path(file_name).suffix.lower().removeprefix(".")
@@ -95,7 +95,7 @@ async def upload_document(
 
     document = store.get_document(db, document.id)
     if document is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
     return _to_document_response(db, document)
 
 
@@ -108,9 +108,9 @@ def list_documents(
 ) -> list[DocumentResponse]:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     docs = store.list_documents_for_profile(db, profile_id)
     return [_to_document_response(db, doc) for doc in docs]
 
@@ -124,9 +124,9 @@ def get_document(
 ) -> DocumentResponse:
     document = store.get_document(db, document_id)
     if document is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
     if document.owner_user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     return _to_document_response(db, document)
 
 
@@ -139,9 +139,9 @@ def delete_document(
 ) -> dict[str, str]:
     document = store.get_document(db, document_id)
     if document is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
     if document.owner_user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     store.soft_delete_document(db, document_id)
     return {"message": "Document deleted"}
 
@@ -155,9 +155,9 @@ def preview_document(
 ) -> DocumentPreviewResponse:
     document = store.get_document(db, document_id)
     if document is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
     if document.owner_user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     return DocumentPreviewResponse(
         document_id=document.id,
         profile_id=document.profile_id,
@@ -178,9 +178,9 @@ def get_document_chunks(
 ) -> DocumentChunksResponse:
     document = store.get_document(db, document_id)
     if document is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
     if document.owner_user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     chunks = store.list_chunks_for_document(db, document.id)
     profile = store.get_profile(db, document.profile_id)

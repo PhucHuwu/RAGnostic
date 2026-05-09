@@ -120,7 +120,7 @@ export async function apiRequest<T>(
         error.name === "AbortError"
       ) {
         throw new ApiError(
-          "Yeu cau qua thoi gian cho phep, vui long thu lai voi tep nho hon.",
+          "Yêu cầu quá thời gian cho phép, vui lòng thử lại với tệp nhỏ hơn.",
           408,
           "REQUEST_TIMEOUT",
         );
@@ -154,7 +154,7 @@ export async function apiRequest<T>(
     } | null;
 
     throw new ApiError(
-      errorPayload?.message ?? `Request failed with status ${response.status}`,
+      errorPayload?.message ?? `Yêu cầu thất bại với mã trạng thái ${response.status}`,
       response.status,
       errorPayload?.code,
       errorPayload?.details,
@@ -350,7 +350,7 @@ export function register(username: string, password: string, email?: string) {
 export function logout() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
-    return Promise.resolve({ message: "Logged out" });
+    return Promise.resolve({ message: "Đăng xuất thành công" });
   }
 
   return apiRequest<{ message: string }>("/auth/logout", {

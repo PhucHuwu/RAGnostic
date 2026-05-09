@@ -60,7 +60,7 @@ class DatabaseStore:
         email: str | None = None,
     ) -> UserDB:
         if db.scalar(select(UserDB.id).where(UserDB.username == username)) is not None:
-            raise ValueError("Username already exists")
+            raise ValueError("Tên đăng nhập đã tồn tại")
         user = UserDB(
             username=username,
             password_hash=hash_password(password),
@@ -124,7 +124,7 @@ class DatabaseStore:
     ) -> UserSessionDB:
         session = db.get(UserSessionDB, session_id)
         if session is None:
-            raise ValueError("Session not found")
+            raise ValueError("Không tìm thấy phiên đăng nhập")
         session.refresh_token_hash = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
         session.expires_at = _utcnow() + timedelta(days=expires_days)
         session.updated_at = _utcnow()
@@ -202,7 +202,7 @@ class DatabaseStore:
     ) -> DocumentDB:
         doc = db.get(DocumentDB, document_id)
         if doc is None:
-            raise ValueError("Document not found")
+            raise ValueError("Không tìm thấy tài liệu")
         doc.status = status
         doc.error_message = error_message
         doc.updated_at = _utcnow()
@@ -309,7 +309,7 @@ class DatabaseStore:
     def soft_delete_document(self, db: Session, document_id: str) -> None:
         doc = db.get(DocumentDB, document_id)
         if doc is None:
-            raise ValueError("Document not found")
+            raise ValueError("Không tìm thấy tài liệu")
         doc.deleted = True
         doc.status = "DELETED"
         doc.updated_at = _utcnow()
@@ -339,7 +339,7 @@ class DatabaseStore:
     def soft_delete_chat_session(self, db: Session, session_id: str) -> None:
         session = db.get(ChatSessionDB, session_id)
         if session is None:
-            raise ValueError("Session not found")
+            raise ValueError("Không tìm thấy phiên chat")
         session.status = "DELETED"
         session.updated_at = _utcnow()
         db.commit()
@@ -347,7 +347,7 @@ class DatabaseStore:
     def update_chat_session_title(self, db: Session, session_id: str, title: str) -> ChatSessionDB:
         session = db.get(ChatSessionDB, session_id)
         if session is None:
-            raise ValueError("Session not found")
+            raise ValueError("Không tìm thấy phiên chat")
         session.title = title
         session.updated_at = _utcnow()
         db.commit()

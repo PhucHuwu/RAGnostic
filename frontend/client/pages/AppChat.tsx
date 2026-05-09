@@ -1063,7 +1063,7 @@ const AppChat = () => {
                       }`}
                     >
                       {message.role === "assistant" ? (
-                        <div className="prose prose-sm max-w-none leading-relaxed break-words [overflow-wrap:anywhere] prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-pre:max-w-full prose-pre:overflow-x-auto prose-code:break-all">
+                        <div className="prose prose-sm max-w-none leading-relaxed break-words [overflow-wrap:anywhere] prose-p:my-2 prose-headings:my-2 prose-ul:my-2 prose-ol:my-2 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-5 prose-ol:pl-5 prose-li:my-1 prose-pre:my-2 prose-pre:max-w-full prose-pre:overflow-x-auto prose-code:break-all">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
                             {message.content}
                           </ReactMarkdown>

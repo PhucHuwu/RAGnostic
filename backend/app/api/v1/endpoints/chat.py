@@ -66,9 +66,9 @@ def create_session(
 ) -> ChatSessionResponse:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     session = store.create_chat_session(
         db, profile_id=profile_id, user_id=current_user.id, title=payload.title
     )
@@ -84,9 +84,9 @@ def list_sessions(
 ) -> list[ChatSessionResponse]:
     profile = store.get_profile(db, profile_id)
     if profile is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Profile not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy profile")
     if profile.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
     sessions = store.list_chat_sessions(db, profile_id=profile_id, user_id=current_user.id)
     return [_to_chat_session_response(item) for item in sessions]
 
@@ -102,9 +102,9 @@ def list_messages(
 ) -> dict:
     session = store.get_chat_session(db, session_id)
     if session is None or session.status == "DELETED":
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy phiên chat")
     if session.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     messages = store.get_messages(db, session_id)
     start = cursor or 0
@@ -126,9 +126,9 @@ def send_message(
 ) -> dict:
     session = store.get_chat_session(db, session_id)
     if session is None or session.status == "DELETED":
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy phiên chat")
     if session.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     set_session_id(session_id)
     request_id = getattr(request.state, "request_id", None)
@@ -253,9 +253,9 @@ def delete_session(
 ) -> dict:
     session = store.get_chat_session(db, session_id)
     if session is None or session.status == "DELETED":
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy phiên chat")
     if session.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     store.soft_delete_chat_session(db, session_id)
     return {"message": "Session deleted"}
@@ -271,9 +271,9 @@ def update_session(
 ) -> ChatSessionResponse:
     session = store.get_chat_session(db, session_id)
     if session is None or session.status == "DELETED":
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Session not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy phiên chat")
     if session.user_id != current_user.id:
-        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Access denied")
+        raise_api_error(request, status.HTTP_403_FORBIDDEN, "FORBIDDEN", "Bạn không có quyền truy cập")
 
     title = payload.title.strip()
     if not title:

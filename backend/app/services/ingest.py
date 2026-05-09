@@ -293,20 +293,93 @@ def _chunk_ordered_blocks(
             for idx, part in enumerate(_split_by_chars(merged_text, chunk_size, chunk_overlap))
         ]
 
-    pieces: list[dict] = []
-    for block in ordered_blocks:
+    text_blocks: list[dict] = []
+    for idx, block in enumerate(ordered_blocks):
         content = _sanitize_text(block.get("content", ""))
         if not content:
             continue
-        block_type = str(block.get("type", "text")).upper()
-        order = int(block.get("order", len(pieces) + 1))
+        block_type = str(block.get("type", "text")).lower()
+        if block_type != "text":
+            continue
+        order = int(block.get("order", idx + 1))
         source_ref = str(block.get("source_ref", f"item-{order}"))
-        for idx, part in enumerate(_split_by_chars(content, chunk_size, chunk_overlap)):
+        text_blocks.append(
+            {
+                "order": order,
+                "source_ref": source_ref,
+                "content": content,
+            }
+        )
+
+    if not text_blocks:
+        return []
+
+    sections: list[dict] = []
+    current_title: str | None = None
+    current_source: str | None = None
+    current_body: list[str] = []
+
+    def flush_section() -> None:
+        nonlocal current_title, current_source, current_body
+        body_text = "\n\n".join(current_body).strip()
+        if current_title and body_text:
+            combined = f"{current_title}\n\n{body_text}"
+            sections.append(
+                {
+                    "content": combined,
+                    "section_title": current_title,
+                    "source_ref": current_source or "section",
+                }
+            )
+        elif body_text:
+            sections.append(
+                {
+                    "content": body_text,
+                    "section_title": "TEXT",
+                    "source_ref": current_source or "section",
+                }
+            )
+        elif current_title:
+            sections.append(
+                {
+                    "content": current_title,
+                    "section_title": current_title,
+                    "source_ref": current_source or "section",
+                }
+            )
+        current_title = None
+        current_source = None
+        current_body = []
+
+    for block in text_blocks:
+        content = block["content"]
+        first_line = content.splitlines()[0].strip() if content.splitlines() else ""
+        is_header_like = len(content) <= 160 and _is_outline_header(first_line)
+
+        if is_header_like:
+            if current_title is not None or current_body:
+                flush_section()
+            current_title = first_line
+            current_source = f"order-{block['order']}:{block['source_ref']}"
+            continue
+
+        if current_source is None:
+            current_source = f"order-{block['order']}:{block['source_ref']}"
+        current_body.append(content)
+
+    if current_title is not None or current_body:
+        flush_section()
+
+    pieces: list[dict] = []
+    for section in sections:
+        for idx, part in enumerate(
+            _split_by_chars(section["content"], chunk_size, chunk_overlap)
+        ):
             pieces.append(
                 {
                     "content": part,
-                    "section_title": block_type,
-                    "source_ref": f"order-{order}:{block_type}:{source_ref}:part-{idx + 1}",
+                    "section_title": section["section_title"],
+                    "source_ref": f"{section['source_ref']}:part-{idx + 1}",
                 }
             )
     return pieces

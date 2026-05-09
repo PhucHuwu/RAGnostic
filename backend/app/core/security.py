@@ -54,18 +54,18 @@ def decode_token(token: str, secret: str) -> dict[str, Any]:
     try:
         encoded_header, encoded_payload, encoded_signature = token.split(".")
     except ValueError as exc:
-        raise ValueError("Malformed token") from exc
+        raise ValueError("Token không đúng định dạng") from exc
 
     signature_input = f"{encoded_header}.{encoded_payload}".encode("ascii")
     expected_signature = hmac.new(secret.encode("utf-8"), signature_input, hashlib.sha256).digest()
     actual_signature = _b64url_decode(encoded_signature)
     if not hmac.compare_digest(expected_signature, actual_signature):
-        raise ValueError("Invalid token signature")
+        raise ValueError("Chữ ký token không hợp lệ")
 
     payload = json.loads(_b64url_decode(encoded_payload).decode("utf-8"))
     exp = payload.get("exp")
     if not isinstance(exp, int) or datetime.now(UTC).timestamp() > exp:
-        raise ValueError("Token expired")
+        raise ValueError("Token đã hết hạn")
     return payload
 
 

@@ -76,7 +76,7 @@ def update_user(
 ) -> dict:
     user = store.get_user(db, user_id)
     if user is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "User not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy người dùng")
 
     before = {"role": user.role, "status": user.status}
     if payload.role is not None:
@@ -109,7 +109,7 @@ def reset_user_password(
 ) -> dict[str, str]:
     user = store.get_user(db, user_id)
     if user is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "User not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy người dùng")
     user.password_hash = hash_password(payload.new_password)
     user.updated_at = datetime.now(UTC)
     db.commit()
@@ -159,7 +159,7 @@ def admin_delete_document(
 ) -> dict[str, str]:
     doc = store.get_document(db, document_id)
     if doc is None:
-        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Document not found")
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
     before = {
         "id": doc.id,
         "status": doc.status,

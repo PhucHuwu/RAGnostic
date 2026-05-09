@@ -44,7 +44,7 @@ def register(
             request,
             status.HTTP_409_CONFLICT,
             "USERNAME_EXISTS",
-            "Username already exists",
+            "Tên đăng nhập đã tồn tại",
         )
 
     return UserInfo(id=user.id, username=user.username, role=user.role)
@@ -61,7 +61,7 @@ def login(
             request,
             status.HTTP_401_UNAUTHORIZED,
             "INVALID_CREDENTIALS",
-            "Invalid username or password",
+            "Tên đăng nhập hoặc mật khẩu không đúng",
         )
 
     access_payload = {
@@ -118,33 +118,51 @@ def refresh(payload: TokenRefreshRequest, request: Request, db: DbSession) -> To
             request,
             status.HTTP_401_UNAUTHORIZED,
             "UNAUTHORIZED",
-            "Invalid token type",
+            "Loại token không hợp lệ",
         )
 
     user_id = token_payload.get("sub")
     if not isinstance(user_id, str):
         raise_api_error(
-            request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Invalid token subject"
+            request,
+            status.HTTP_401_UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Thông tin người dùng trong token không hợp lệ",
         )
 
     user = store.get_user(db, user_id)
     if user is None:
-        raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "User not found")
+        raise_api_error(
+            request,
+            status.HTTP_401_UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Không tìm thấy người dùng",
+        )
 
     session_id = token_payload.get("sid")
     if not isinstance(session_id, str):
-        raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Missing session id")
+        raise_api_error(
+            request,
+            status.HTTP_401_UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Thiếu mã phiên đăng nhập",
+        )
 
     session = store.get_session(db, session_id)
     if session is None or session.revoked_at is not None:
-        raise_api_error(request, status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Session revoked")
+        raise_api_error(
+            request,
+            status.HTTP_401_UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "Phiên đăng nhập đã bị thu hồi",
+        )
 
     if hash_refresh_token(payload.refresh_token) != session.refresh_token_hash:
         raise_api_error(
             request,
             status.HTTP_401_UNAUTHORIZED,
             "UNAUTHORIZED",
-            "Refresh token does not match",
+            "Refresh token không khớp",
         )
 
     access_payload = {"sub": user.id, "role": user.role, "type": AuthTokenType.ACCESS}
@@ -185,7 +203,7 @@ def logout(payload: TokenLogoutRequest, request: Request, db: DbSession) -> dict
             and hash_refresh_token(payload.refresh_token) == session.refresh_token_hash
         ):
             store.revoke_session(db, session_id)
-    return {"message": "Logged out"}
+    return {"message": "Đăng xuất thành công"}
 
 
 @router.get("/me")
