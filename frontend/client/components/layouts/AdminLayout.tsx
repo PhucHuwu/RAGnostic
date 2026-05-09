@@ -36,7 +36,7 @@ const ADMIN_NAV_ITEMS: NavigationItem[] = [
   {
     href: "/admin/users",
     icon: <Users className="w-5 h-5" />,
-    label: "Tài khoản người dùng",
+    label: "Quản lý người dùng",
   },
   {
     href: "/admin/documents",
@@ -57,7 +57,7 @@ const ADMIN_NAV_ITEMS: NavigationItem[] = [
 
 function getAdminPageTitle(pathname: string) {
   if (pathname === "/admin/users") {
-    return "Tài khoản người dùng";
+    return "Quản lý người dùng";
   }
   if (pathname === "/admin/documents") {
     return "Kho tri thức hệ thống";
