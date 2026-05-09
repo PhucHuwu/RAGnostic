@@ -59,6 +59,7 @@ const AdminUsers = () => {
   const [modalAction, setModalAction] = useState<
     "change-role" | "change-status" | "reset-password" | "delete"
   >("change-role");
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
 
   const nextStatus = (status: User["status"]): User["status"] => {
     if (status === "active") return "suspended";
@@ -117,6 +118,7 @@ const AdminUsers = () => {
   ) => {
     setSelectedUser(user);
     setModalAction(action);
+    setResetPasswordValue("");
     setModalOpen(true);
   };
 
@@ -139,7 +141,11 @@ const AdminUsers = () => {
             ),
           );
         } else if (modalAction === "reset-password") {
-          await resetAdminUserPassword(selectedUser.id, "123456");
+          if (resetPasswordValue.trim().length < 6) {
+            setError("Mật khẩu mới phải có ít nhất 6 ký tự");
+            return;
+          }
+          await resetAdminUserPassword(selectedUser.id, resetPasswordValue.trim());
         } else if (modalAction === "change-status") {
           const newStatus = nextStatus(selectedUser.status);
           await updateAdminUserStatus(selectedUser.id, toApiStatus(newStatus));
@@ -410,15 +416,34 @@ const AdminUsers = () => {
                 {modalAction === "change-status" &&
                   `Bạn sắp đổi trạng thái của ${selectedUser.username} từ ${getStatusLabel(selectedUser.status)} sang ${getStatusLabel(nextStatus(selectedUser.status))}.`}
                 {modalAction === "reset-password" &&
-                  `Mật khẩu mới sẽ được gửi tới email của ${selectedUser.username}.`}
+                  `Nhập mật khẩu mới cho ${selectedUser.username}.`}
                 {modalAction === "delete" &&
                   `Người dùng ${selectedUser.username} sẽ bị xóa vĩnh viễn.`}
               </p>
+              {modalAction === "reset-password" && (
+                <div className="mb-6">
+                  <label
+                    htmlFor="reset-password"
+                    className="block text-sm font-medium mb-2 text-foreground"
+                  >
+                    Mật khẩu mới
+                  </label>
+                  <input
+                    id="reset-password"
+                    type="password"
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                    placeholder="Tối thiểu 6 ký tự"
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+              )}
               <div className="flex gap-3">
                 <button
                   onClick={() => {
                     setModalOpen(false);
                     setSelectedUser(null);
+                    setResetPasswordValue("");
                   }}
                   className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted/50 font-semibold transition-colors"
                 >
@@ -426,6 +451,10 @@ const AdminUsers = () => {
                 </button>
                 <button
                   onClick={handleConfirmAction}
+                  disabled={
+                    modalAction === "reset-password" &&
+                    resetPasswordValue.trim().length < 6
+                  }
                   className="flex-1 px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
                 >
                   Xác nhận

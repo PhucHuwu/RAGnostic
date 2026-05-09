@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_dimensions: int = 1024
 
+    seed_admin_username: str = ""
+    seed_admin_password: str = ""
+    seed_admin_email: str = ""
+
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]
 

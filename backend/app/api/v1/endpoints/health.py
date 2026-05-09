@@ -25,7 +25,7 @@ def ready(db: DbSession) -> ReadyResponse:
 
     admin_seeded = "missing"
     try:
-        if store.get_user_by_username(db, "admin") is not None:
+        if store.has_admin_user(db):
             admin_seeded = "ok"
     except Exception:
         admin_seeded = "unknown"

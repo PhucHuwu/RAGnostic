@@ -29,16 +29,6 @@ def _utcnow() -> datetime:
 
 class DatabaseStore:
     def bootstrap_defaults(self, db: Session) -> None:
-        admin_exists = db.scalar(select(UserDB).where(UserDB.username == "admin"))
-        if admin_exists is None and settings.app_env in {"local", "dev", "init"}:
-            self.create_user(
-                db,
-                username="admin",
-                password="123456",
-                role=UserRole.ADMIN,
-                status=UserStatus.ACTIVE,
-            )
-
         model_config = db.get(SystemConfigDB, "model")
         if model_config is None:
             db.add(
@@ -85,6 +75,10 @@ class DatabaseStore:
 
     def get_user_by_username(self, db: Session, username: str) -> UserDB | None:
         return db.scalar(select(UserDB).where(UserDB.username == username))
+
+    def has_admin_user(self, db: Session) -> bool:
+        admin_id = db.scalar(select(UserDB.id).where(UserDB.role == UserRole.ADMIN).limit(1))
+        return admin_id is not None
 
     def get_user(self, db: Session, user_id: str) -> UserDB | None:
         return db.get(UserDB, user_id)
