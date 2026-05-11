@@ -28,7 +28,7 @@ start_backend_with_retry() {
   local max_attempts=3
 
   while (( attempt <= max_attempts )); do
-    echo "Deploying backend (no reload) on :${DEPLOY_BACKEND_PORT} (attempt ${attempt}/${max_attempts})"
+    echo "Deploying backend (prod) on :${DEPLOY_BACKEND_PORT} (attempt ${attempt}/${max_attempts})"
     nohup "${BACKEND_DIR}/.venv/bin/uvicorn" app.main:app \
       --host 0.0.0.0 \
       --port "${DEPLOY_BACKEND_PORT}" \
@@ -52,18 +52,13 @@ start_backend_with_retry() {
   return 1
 }
 
-build_frontend_prod() {
-  echo "Building frontend production bundle"
-  npm --prefix "${FRONTEND_DIR}" run build > /tmp/opencode/ragnostic-frontend-build.log 2>&1
-}
-
 start_frontend_with_retry() {
   local attempt=1
   local max_attempts=3
 
   while (( attempt <= max_attempts )); do
-    echo "Deploying frontend (prod) on :${DEPLOY_FRONTEND_PORT} (attempt ${attempt}/${max_attempts})"
-    nohup env PORT="${DEPLOY_FRONTEND_PORT}" HOST="0.0.0.0" NEXT_PUBLIC_API_BASE_URL="http://localhost:${DEPLOY_BACKEND_PORT}/api/v1" npm --prefix "${FRONTEND_DIR}" run start \
+    echo "Deploying frontend on :${DEPLOY_FRONTEND_PORT} (attempt ${attempt}/${max_attempts})"
+    nohup env NEXT_PUBLIC_API_BASE_URL="http://localhost:${DEPLOY_BACKEND_PORT}/api/v1" npm --prefix "${FRONTEND_DIR}" run dev -- --port "${DEPLOY_FRONTEND_PORT}" \
       > /tmp/opencode/ragnostic-frontend-deploy.log 2>&1 &
 
     sleep 2
@@ -86,7 +81,6 @@ start_frontend_with_retry() {
 kill_port "${DEPLOY_BACKEND_PORT}"
 kill_port "${DEPLOY_FRONTEND_PORT}"
 
-build_frontend_prod
 start_backend_with_retry
 start_frontend_with_retry
 

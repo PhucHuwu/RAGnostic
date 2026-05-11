@@ -5,6 +5,7 @@
   "scripts": {
     "dev:local": "./scripts/dev-local.sh",
     "deploy:fast": "./scripts/deploy-fast.sh",
+    "deploy:fast:prod": "./scripts/deploy-fast-prod.sh",
     "lint": "npm run lint:frontend && npm run lint:bff && npm run lint:python",
     "lint:frontend": "npm --prefix frontend run lint",
     "lint:bff": "npm --prefix bff run lint",
