@@ -8,6 +8,7 @@ Requirements are documented in [`docs/project.md`](docs/project.md) and [`docs/s
 - [Project structure](#project-structure)
 - [Prerequisites](#prerequisites)
 - [Quick start](#quick-start)
+- [Local/dev and deploy scripts](#localdev-and-deploy-scripts)
 - [Smoke test](#smoke-test)
 - [Code quality](#code-quality)
 - [Notes](#notes)
@@ -84,6 +85,27 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8037/api/v1
 npm --prefix bff install
 npm --prefix bff run dev
 ```
+
+## Local/dev and deploy scripts
+
+From repository root:
+
+```bash
+npm run dev:local
+```
+
+- Starts local backend on `8037` with `backend/.env.localdev`
+- Starts local frontend on `3000` with `frontend/.env.localdev`
+- Keeps deploy ports isolated (default deploy uses `3724`/`3636`)
+
+Fast deploy after validating local changes:
+
+```bash
+npm run deploy:fast
+```
+
+- Restarts backend on `3724` using `backend/.env`
+- Restarts frontend on `3636`
 
 ## Smoke test
 

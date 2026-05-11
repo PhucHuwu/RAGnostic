@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "dev:local": "./scripts/dev-local.sh",
+    "deploy:fast": "./scripts/deploy-fast.sh",
     "lint": "npm run lint:frontend && npm run lint:bff && npm run lint:python",
     "lint:frontend": "npm --prefix frontend run lint",
     "lint:bff": "npm --prefix bff run lint",
