@@ -44,11 +44,21 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
 @app.exception_handler(RequestValidationError)
 async def request_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    message = "Dữ liệu đầu vào không hợp lệ"
+    if request.url.path.endswith("/auth/login"):
+        message = "Tên đăng nhập hoặc mật khẩu không đúng"
+        for err in exc.errors():
+            loc = err.get("loc")
+            if isinstance(loc, (list, tuple)) and list(loc[-2:]) == ["password"]:
+                if err.get("type") == "string_too_short":
+                    message = "Mật khẩu phải có ít nhất 6 ký tự"
+                    break
+
     return JSONResponse(
         status_code=422,
         content={
             "code": "VALIDATION_ERROR",
-            "message": "Dữ liệu đầu vào không hợp lệ",
+            "message": message,
             "details": {"errors": exc.errors()},
             "request_id": getattr(request.state, "request_id", None),
         },

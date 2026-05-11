@@ -38,6 +38,12 @@ const Login = () => {
       return;
     }
 
+    if (password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await login(username, password);
       setAuthSession({

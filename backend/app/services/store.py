@@ -481,14 +481,18 @@ class DatabaseStore:
         resource_id: str,
         before_json: dict | None,
         after_json: dict | None,
+        request_id: str | None = None,
     ) -> AuditLogDB:
+        next_after = dict(after_json or {})
+        if request_id:
+            next_after["_request_id"] = request_id
         audit = AuditLogDB(
             actor_user_id=actor_user_id,
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
             before_json=before_json,
-            after_json=after_json,
+            after_json=next_after,
         )
         db.add(audit)
         db.commit()

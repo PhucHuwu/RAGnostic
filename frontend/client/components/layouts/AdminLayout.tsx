@@ -161,10 +161,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </div>
 
           <div className="mt-auto p-5 border-t border-border space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors">
-              <Settings className="w-5 h-5" />
-              <span>Thiết lập</span>
-            </button>
             <button
               onClick={() => void handleLogout()}
               disabled={isLoggingOut}
@@ -209,10 +205,6 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           </div>
 
           <div className="mt-auto border-t border-border p-5 space-y-2">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-border text-foreground hover:bg-muted/40 transition-colors">
-              <Shield className="w-5 h-5" />
-              <span>{currentUser?.username ?? "Admin"}</span>
-            </button>
             <button
               onClick={() => void handleLogout()}
               disabled={isLoggingOut}

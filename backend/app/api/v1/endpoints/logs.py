@@ -23,6 +23,11 @@ def search_logs(
 ) -> LogSearchResponse:
     records: list[LogRecord] = []
     for audit in store.list_audit_logs(db, limit=500):
+        request_id_value = None
+        if isinstance(audit.after_json, dict):
+            value = audit.after_json.get("_request_id")
+            if isinstance(value, str) and value.strip():
+                request_id_value = value.strip()
         text_payload = f"{audit.action} {audit.resource_type} {audit.resource_id}".lower()
         if q and q.lower() not in text_payload:
             continue
@@ -30,7 +35,7 @@ def search_logs(
             continue
         if session_id:
             continue
-        if request_id:
+        if request_id and request_id_value != request_id:
             continue
         if service and service != "rag-api":
             continue
@@ -44,7 +49,7 @@ def search_logs(
                 service="rag-api",
                 event="audit.log",
                 message=f"{audit.action} on {audit.resource_type}:{audit.resource_id}",
-                request_id=None,
+                request_id=request_id_value,
                 session_id=None,
                 user_id=audit.actor_user_id,
                 metadata={"before": audit.before_json, "after": audit.after_json},

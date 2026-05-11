@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Request, status
 
 from app.api.deps import AdminUser, DbSession, raise_api_error
-from app.core.security import hash_password
+from app.core.security import UserRole, UserStatus, hash_password
 from app.schemas.admin import (
     AdminResetPasswordRequest,
     AdminUserCreateRequest,
@@ -43,7 +43,7 @@ def list_users(_: AdminUser, db: DbSession) -> list[dict]:
 
 @router.post("/users")
 def create_user(
-    payload: AdminUserCreateRequest, current_admin: AdminUser, db: DbSession
+    payload: AdminUserCreateRequest, request: Request, current_admin: AdminUser, db: DbSession
 ) -> UserInfo:
     user = store.create_user(
         db,
@@ -66,6 +66,7 @@ def create_user(
             "role": user.role,
             "status": user.status,
         },
+        request_id=getattr(request.state, "request_id", None),
     )
     return UserInfo(id=user.id, username=user.username, role=user.role)
 
@@ -84,8 +85,30 @@ def update_user(
 
     before = {"role": user.role, "status": user.status}
     if payload.role is not None:
+        if (
+            user.id == current_admin.id
+            and user.role == UserRole.ADMIN
+            and payload.role == UserRole.USER
+        ):
+            raise_api_error(
+                request,
+                status.HTTP_400_BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "Không thể tự hạ quyền quản trị viên của chính bạn",
+            )
         user.role = payload.role
     if payload.status is not None:
+        if (
+            user.id == current_admin.id
+            and user.role == UserRole.ADMIN
+            and payload.status != UserStatus.ACTIVE
+        ):
+            raise_api_error(
+                request,
+                status.HTTP_400_BAD_REQUEST,
+                "VALIDATION_ERROR",
+                "Không thể tự tạm khóa hoặc vô hiệu hóa tài khoản của chính bạn",
+            )
         user.status = payload.status
     user.updated_at = datetime.now(UTC)
     after = {"role": user.role, "status": user.status}
@@ -99,6 +122,7 @@ def update_user(
         resource_id=user.id,
         before_json=before,
         after_json=after,
+        request_id=getattr(request.state, "request_id", None),
     )
     return {"id": user.id, **after}
 
@@ -125,6 +149,7 @@ def reset_user_password(
         resource_id=user.id,
         before_json=None,
         after_json={"password_changed": True},
+        request_id=getattr(request.state, "request_id", None),
     )
     return {"message": "Password reset successful"}
 
@@ -179,6 +204,7 @@ def admin_delete_document(
         resource_id=document_id,
         before_json=before,
         after_json={"status": "DELETED"},
+        request_id=getattr(request.state, "request_id", None),
     )
     return {"message": "Document deleted"}
 
@@ -263,5 +289,6 @@ def update_system_model_config(
         resource_id="model",
         before_json=before,
         after_json=after,
+        request_id=getattr(request.state, "request_id", None),
     )
     return after

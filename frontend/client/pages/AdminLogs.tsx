@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, Pause, Play, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Pause, Play, Trash2, SlidersHorizontal } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import { ApiError, searchLogs } from "@/lib/api";
 import { ApiErrorState, TableSkeleton } from "@/components/common/api-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LogEntry {
   id: string;
@@ -21,15 +28,14 @@ const AdminLogs = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const [isPaused, setIsPaused] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState<
     "" | "INFO" | "WARN" | "ERROR" | "DEBUG"
   >("");
-  const [serviceFilter, setServiceFilter] = useState("");
   const [quickSearch, setQuickSearch] = useState("");
   const [quickSearchType, setQuickSearchType] = useState<
     "requestId" | "userId" | "sessionId"
   >("requestId");
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -60,8 +66,6 @@ const AdminLogs = () => {
       try {
         const response = await searchLogs({
           level: levelFilter || undefined,
-          service: serviceFilter || undefined,
-          q: searchQuery || undefined,
           request_id:
             quickSearchType === "requestId"
               ? quickSearch || undefined
@@ -103,8 +107,6 @@ const AdminLogs = () => {
     [
       isPaused,
       levelFilter,
-      serviceFilter,
-      searchQuery,
       quickSearch,
       quickSearchType,
     ],
@@ -114,14 +116,9 @@ const AdminLogs = () => {
     void loadLogs();
   }, [loadLogs]);
 
-  const uniqueServices = Array.from(new Set(logs.map((log) => log.service)));
 
   const filteredLogs = logs.filter((log) => {
-    const matchesSearch = log.message
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
     const matchesLevel = !levelFilter || log.level === levelFilter;
-    const matchesService = !serviceFilter || log.service === serviceFilter;
     const matchesQuickSearch =
       !quickSearch ||
       (quickSearchType === "requestId" &&
@@ -130,9 +127,14 @@ const AdminLogs = () => {
       (quickSearchType === "sessionId" && log.sessionId?.includes(quickSearch));
 
     return (
-      matchesSearch && matchesLevel && matchesService && matchesQuickSearch
+      matchesLevel && matchesQuickSearch
     );
   });
+
+  const missingRequestIdCount = useMemo(
+    () => logs.filter((log) => !log.requestId).length,
+    [logs],
+  );
 
   const getLogColor = (level: LogEntry["level"]) => {
     switch (level) {
@@ -162,7 +164,7 @@ const AdminLogs = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6 h-[calc(100vh-200px)] flex flex-col">
+      <div className="h-[calc(100dvh-64px-2rem)] sm:h-[calc(100dvh-64px-3rem)] lg:h-[calc(100dvh-64px-4rem)] min-h-0 flex flex-col gap-6 overflow-hidden">
         {/* Header */}
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground mb-2">
@@ -184,73 +186,25 @@ const AdminLogs = () => {
           />
         )}
 
-        <div className="space-y-4">
-          {/* Main Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2 text-foreground">
-                Tìm kiếm
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm theo thông điệp..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-foreground">
-                Level
-              </label>
-              <select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value as any)}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              >
-                <option value="">Tất cả level</option>
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARN">WARN</option>
-                <option value="ERROR">ERROR</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-foreground">
-                Service
-              </label>
-              <select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              >
-                <option value="">Tất cả service</option>
-                {uniqueServices.map((service) => (
-                  <option key={service} value={service}>
-                    {service}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-foreground">
-                Kết quả
-              </label>
-              <div className="px-4 py-2 rounded-lg border border-border bg-muted/30 text-foreground text-sm font-medium h-10 flex items-center">
-                {filteredLogs.length} log
-              </div>
-            </div>
+        <div className="space-y-4 shrink-0">
+          <div className="md:hidden">
+            <button
+              type="button"
+              onClick={() => setIsMobileFiltersOpen((prev) => !prev)}
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              {isMobileFiltersOpen ? "Ẩn bộ lọc" : "Hiện bộ lọc"}
+            </button>
           </div>
 
-          {/* Quick Search */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
+          {/* Filters */}
+          <div
+            className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 ${
+              isMobileFiltersOpen ? "grid" : "hidden"
+            } md:grid`}
+          >
+            <div>
               <label className="block text-sm font-medium mb-2 text-foreground">
                 Tìm kiếm nhanh
               </label>
@@ -262,31 +216,75 @@ const AdminLogs = () => {
                 className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
               />
             </div>
+
             <div>
               <label className="block text-sm font-medium mb-2 text-foreground">
                 Loại tìm kiếm
               </label>
-              <select
+              <Select
                 value={quickSearchType}
-                onChange={(e) =>
-                  setQuickSearchType(
-                    e.target.value as "requestId" | "userId" | "sessionId",
+                onValueChange={(value) =>
+                  setQuickSearchType(value as "requestId" | "userId" | "sessionId")
+                }
+              >
+                <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="requestId">Request ID</SelectItem>
+                  <SelectItem value="userId">User ID</SelectItem>
+                  <SelectItem value="sessionId">Session ID</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Level
+              </label>
+              <Select
+                value={levelFilter || "all"}
+                onValueChange={(value) =>
+                  setLevelFilter(
+                    value === "all" ? "" : (value as "INFO" | "WARN" | "ERROR" | "DEBUG"),
                   )
                 }
-                className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
               >
-                <option value="requestId">Request ID</option>
-                <option value="userId">User ID</option>
-                <option value="sessionId">Session ID</option>
-              </select>
+                <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                  <SelectValue placeholder="Tất cả level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả level</SelectItem>
+                  <SelectItem value="DEBUG">DEBUG</SelectItem>
+                  <SelectItem value="INFO">INFO</SelectItem>
+                  <SelectItem value="WARN">WARN</SelectItem>
+                  <SelectItem value="ERROR">ERROR</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Kết quả
+              </label>
+              <div className="px-4 py-2 rounded-lg border border-border bg-muted/30 text-foreground text-sm font-medium h-10 flex items-center justify-between">
+                {filteredLogs.length} log
+                <span className="text-xs text-muted-foreground">kết quả</span>
+              </div>
             </div>
           </div>
+
+          {quickSearchType === "requestId" && missingRequestIdCount > 0 && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-100/20 px-3 py-2 text-xs text-amber-700">
+              Có {missingRequestIdCount} log chưa có requestId, nên có thể không tìm được bằng bộ lọc Request ID.
+            </div>
+          )}
         </div>
 
         {/* Logs Container */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 min-h-0 flex flex-col">
           {/* Controls */}
-          <div className="flex items-center justify-between pb-4 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-4 border-b border-border">
             <p className="text-sm text-muted-foreground">
               {isPaused ? "Tạm dừng" : "Đang theo dõi realtime"}
             </p>
@@ -318,7 +316,7 @@ const AdminLogs = () => {
           </div>
 
           {/* Logs List */}
-          <div className="flex-1 overflow-y-auto bg-background rounded-lg border border-border p-4 font-mono text-xs space-y-1">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-background rounded-lg border border-border p-4 font-mono text-xs space-y-1">
             {filteredLogs.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 <p>Không tìm thấy log nào</p>
@@ -332,7 +330,7 @@ const AdminLogs = () => {
                       log.level,
                     )} cursor-pointer group hover:bg-muted/20`}
                   >
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-1 sm:gap-4">
                       <span className="text-muted-foreground flex-shrink-0">
                         {log.timestamp}
                       </span>
@@ -343,20 +341,18 @@ const AdminLogs = () => {
                       >
                         [{log.level}]
                       </span>
-                      <span className="text-secondary flex-shrink-0">
+                      <span className="text-secondary flex-shrink-0 text-xs sm:text-[11px]">
                         {log.service}
                       </span>
                       <span className="text-foreground flex-1 break-words">
                         {log.message}
                       </span>
-                      <span className="text-muted-foreground flex-shrink-0 hidden group-hover:inline">
-                        {log.requestId && `${log.requestId}`}
-                      </span>
                     </div>
-                    {(log.userId || log.sessionId) && (
-                      <div className="ml-32 text-muted-foreground text-xs mt-1">
+                    {(log.requestId || log.userId || log.sessionId) && (
+                      <div className="ml-0 sm:ml-32 text-muted-foreground text-xs mt-1 space-x-2">
+                        <span>requestId: {log.requestId ?? "N/A"}</span>
                         {log.userId && <span>userId: {log.userId}</span>}
-                        {log.userId && log.sessionId && <span> | </span>}
+                        {log.userId && log.sessionId && <span>|</span>}
                         {log.sessionId && (
                           <span>sessionId: {log.sessionId}</span>
                         )}

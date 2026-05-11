@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getCurrentUser } from "@/lib/auth";
 
 interface User {
   id: string;
@@ -51,6 +52,7 @@ function mapUser(user: AdminUserResponse): User {
 }
 
 const AdminUsers = () => {
+  const currentUser = getCurrentUser();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +162,10 @@ const AdminUsers = () => {
       setIsActing(true);
       try {
         if (modalAction === "change-role") {
+          if (currentUser?.id === selectedUser.id && selectedUser.role === "ADMIN") {
+            setError("Không thể tự hạ quyền quản trị viên của chính bạn");
+            return;
+          }
           const nextRole = selectedUser.role === "ADMIN" ? "USER" : "ADMIN";
           await updateAdminUserRole(selectedUser.id, nextRole);
         } else if (modalAction === "reset-password") {
@@ -170,6 +176,10 @@ const AdminUsers = () => {
           }
           await resetAdminUserPassword(selectedUser.id, resetPasswordValue.trim());
         } else if (modalAction === "change-status") {
+          if (currentUser?.id === selectedUser.id && selectedUser.role === "ADMIN") {
+            setError("Không thể tự tạm khóa hoặc vô hiệu hóa tài khoản của chính bạn");
+            return;
+          }
           const newStatus = nextStatus(selectedUser.status);
           await updateAdminUserStatus(selectedUser.id, toApiStatus(newStatus));
         }
@@ -226,12 +236,18 @@ const AdminUsers = () => {
         {/* Filters */}
         {isLoading && <TableSkeleton />}
 
-        {error && (
+        {error && users.length === 0 && (
           <ApiErrorState
             message={error}
             onRetry={() => void loadUsers(true)}
             isRetrying={isRetrying}
           />
+        )}
+
+        {error && users.length > 0 && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <p className="text-sm text-destructive font-medium">{error}</p>
+          </div>
         )}
 
         <div className="md:hidden">
