@@ -226,15 +226,33 @@ def get_system_model_config(_: AdminUser, db: DbSession) -> dict:
 @router.put("/system-config/model")
 def update_system_model_config(
     payload: SystemModelConfigRequest,
+    request: Request,
     current_admin: AdminUser,
     db: DbSession,
 ) -> dict:
     before = store.get_system_model_config(db)
+
+    normalized_models: list[dict] = []
+    for raw in payload.models:
+        if not isinstance(raw, dict):
+            continue
+        model_name = str(raw.get("model_name") or "").strip()
+        if not model_name:
+            continue
+        params = raw.get("params") if isinstance(raw.get("params"), dict) else {}
+        normalized_models.append({"model_name": model_name, "params": params})
+
+    if not normalized_models:
+        raise_api_error(
+            request,
+            status.HTTP_400_BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "Danh sách model không hợp lệ",
+        )
+
     after = store.update_system_model_config(
         db,
-        provider=payload.provider,
-        model_name=payload.model_name,
-        params=payload.params,
+        models=normalized_models,
         updated_by=current_admin.id,
     )
     store.add_audit_log(

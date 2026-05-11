@@ -214,10 +214,35 @@ def _fallback_answer(
 def _resolve_model(system_model_config: dict, profile_model_override: str | None) -> str:
     if profile_model_override and profile_model_override.strip():
         return profile_model_override.strip()
+    models = system_model_config.get("models")
+    if isinstance(models, list) and models:
+        first = models[0]
+        if isinstance(first, dict):
+            model_name = first.get("model_name")
+            if isinstance(model_name, str) and model_name.strip():
+                return model_name.strip()
     model_name = system_model_config.get("model_name")
     if isinstance(model_name, str) and model_name.strip():
         return model_name.strip()
     return settings.openrouter_model
+
+
+def _resolve_model_params(system_model_config: dict, selected_model: str) -> dict:
+    models = system_model_config.get("models")
+    if isinstance(models, list):
+        for item in models:
+            if not isinstance(item, dict):
+                continue
+            model_name = str(item.get("model_name") or "").strip()
+            if model_name == selected_model and isinstance(item.get("params"), dict):
+                return item["params"]
+        for item in models:
+            if isinstance(item, dict) and isinstance(item.get("params"), dict):
+                return item["params"]
+    params = system_model_config.get("params")
+    if isinstance(params, dict):
+        return params
+    return {}
 
 
 def build_assistant_answer(
@@ -249,6 +274,8 @@ def build_assistant_answer(
     prompt_context = "\n".join(context_lines) if context_lines else "(no retrieved context)"
     prompt_memory = "\n".join(conversation_lines) if conversation_lines else "(no recent memory)"
 
+    default_params = _resolve_model_params(system_model_config, model)
+
     payload = {
         "model": model,
         "messages": [
@@ -274,9 +301,15 @@ def build_assistant_answer(
                 ),
             },
         ],
-        "temperature": system_model_config.get("params", {}).get("temperature", 0.2),
-        "max_tokens": system_model_config.get("params", {}).get("max_tokens", 2048),
+        "temperature": default_params.get("temperature", 0.2),
+        "max_tokens": default_params.get("max_tokens", 2048),
     }
+    if "top_p" in default_params:
+        payload["top_p"] = default_params.get("top_p")
+    if "frequency_penalty" in default_params:
+        payload["frequency_penalty"] = default_params.get("frequency_penalty")
+    if "presence_penalty" in default_params:
+        payload["presence_penalty"] = default_params.get("presence_penalty")
 
     req = request.Request(
         url=settings.openrouter_chat_completions_url,

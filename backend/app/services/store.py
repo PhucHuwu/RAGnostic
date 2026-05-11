@@ -36,8 +36,12 @@ class DatabaseStore:
                     config_key="model",
                     value_json={
                         "provider": "openrouter",
-                        "model_name": settings.openrouter_model,
-                        "params": {"temperature": 0.2, "max_tokens": 2048},
+                        "models": [
+                            {
+                                "model_name": settings.openrouter_model,
+                                "params": {"temperature": 0.2, "max_tokens": 2048},
+                            }
+                        ],
                     },
                 )
             )
@@ -500,16 +504,40 @@ class DatabaseStore:
         if row is None:
             return {
                 "provider": "openrouter",
-                "model_name": settings.openrouter_model,
-                "params": {"temperature": 0.2, "max_tokens": 2048},
+                "models": [
+                    {
+                        "model_name": settings.openrouter_model,
+                        "params": {"temperature": 0.2, "max_tokens": 2048},
+                    }
+                ],
             }
-        return row.value_json
+
+        data = row.value_json
+        if isinstance(data, dict) and isinstance(data.get("models"), list):
+            return data
+
+        legacy_model_name = ""
+        if isinstance(data, dict):
+            legacy_model_name = str(data.get("model_name") or "").strip()
+            legacy_params = data.get("params") if isinstance(data.get("params"), dict) else {}
+        else:
+            legacy_params = {}
+
+        return {
+            "provider": "openrouter",
+            "models": [
+                {
+                    "model_name": legacy_model_name or settings.openrouter_model,
+                    "params": legacy_params or {"temperature": 0.2, "max_tokens": 2048},
+                }
+            ],
+        }
 
     def update_system_model_config(
-        self, db: Session, provider: str, model_name: str, params: dict, updated_by: str
+        self, db: Session, models: list[dict], updated_by: str
     ) -> dict:
         row = db.get(SystemConfigDB, "model")
-        next_value = {"provider": provider, "model_name": model_name, "params": params}
+        next_value = {"provider": "openrouter", "models": models}
         if row is None:
             row = SystemConfigDB(
                 config_key="model",

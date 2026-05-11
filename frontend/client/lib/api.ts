@@ -365,6 +365,16 @@ export interface LogsSearchResponse {
   }>;
 }
 
+export interface SystemModelEntry {
+  model_name: string;
+  params: Record<string, unknown>;
+}
+
+export interface SystemModelConfigResponse {
+  provider: "openrouter";
+  models: SystemModelEntry[];
+}
+
 export function login(username: string, password: string) {
   return apiRequest<LoginPayload>("/auth/login", {
     method: "POST",
@@ -551,26 +561,20 @@ export function deleteAdminDocument(documentId: string) {
 }
 
 export function getModelConfig() {
-  return apiRequest<{
-    provider: string;
-    model_name: string;
-    params: Record<string, unknown>;
-  }>("/admin/system-config/model");
+  return apiRequest<SystemModelConfigResponse>("/admin/system-config/model");
 }
 
 export function updateModelConfig(payload: {
-  provider: string;
-  model_name: string;
-  params: Record<string, unknown>;
+  models: SystemModelEntry[];
 }) {
-  return apiRequest<{
-    provider: string;
-    model_name: string;
-    params: Record<string, unknown>;
-  }>("/admin/system-config/model", {
+  return apiRequest<SystemModelConfigResponse>("/admin/system-config/model", {
     method: "PUT",
     body: payload,
   });
+}
+
+export function listProfileModelOptions() {
+  return apiRequest<SystemModelConfigResponse>("/profiles/models/options");
 }
 
 export function searchLogs(params: {

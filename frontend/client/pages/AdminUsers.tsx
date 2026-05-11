@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Lock, Shield, Trash2 } from "lucide-react";
+import { Search, Lock, Shield, Trash2, SlidersHorizontal } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import {
   updateAdminUserStatus,
@@ -61,6 +61,7 @@ const AdminUsers = () => {
   const [statusFilter, setStatusFilter] = useState<
     "" | "active" | "inactive" | "suspended"
   >("");
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [modalAction, setModalAction] = useState<
@@ -233,7 +234,22 @@ const AdminUsers = () => {
           />
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setIsMobileFiltersOpen((prev) => !prev)}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {isMobileFiltersOpen ? "Ẩn bộ lọc" : "Hiện bộ lọc"}
+          </button>
+        </div>
+
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 ${
+            isMobileFiltersOpen ? "grid" : "hidden"
+          } md:grid`}
+        >
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
               Tìm kiếm

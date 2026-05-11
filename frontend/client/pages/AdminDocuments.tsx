@@ -9,6 +9,7 @@ import {
   Check,
   AlertCircle,
   Loader,
+  SlidersHorizontal,
 } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import {
@@ -25,6 +26,13 @@ import {
   StatCardsSkeleton,
   TableSkeleton,
 } from "@/components/common/api-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AdminDocument {
   id: string;
@@ -65,6 +73,7 @@ const AdminDocuments = () => {
   const [userFilter, setUserFilter] = useState("");
   const [profileFilter, setProfileFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<AdminDocument | null>(null);
   const [chunkDetails, setChunkDetails] = useState<DocumentChunkDetailResponse[]>([]);
   const [chunkStrategy, setChunkStrategy] = useState<string | null>(null);
@@ -104,6 +113,19 @@ const AdminDocuments = () => {
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    if (!previewDoc) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [previewDoc]);
 
   const uniqueUsers = useMemo(
     () => Array.from(new Set(documents.map((d) => d.user))),
@@ -204,7 +226,7 @@ const AdminDocuments = () => {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground mb-2">
-            Quản lý Tài liệu (Toàn hệ thống)
+            Quản lý Tài liệu
           </h1>
           <p className="text-muted-foreground">
             Xem và quản lý tất cả tài liệu trong hệ thống
@@ -227,37 +249,52 @@ const AdminDocuments = () => {
           />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-lg border border-border bg-card/50">
-            <p className="text-sm text-muted-foreground mb-1">Tổng tài liệu</p>
-            <p className="text-3xl font-display font-bold">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+          <div className="p-2.5 sm:p-4 rounded-lg border border-border bg-card/50">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Tổng tài liệu</p>
+            <p className="text-xl sm:text-3xl font-display font-bold">
               {documents.length}
             </p>
           </div>
-          <div className="p-4 rounded-lg border border-border bg-card/50">
-            <p className="text-sm text-muted-foreground mb-1">Sẵn sàng</p>
-            <p className="text-3xl font-display font-bold">
+          <div className="p-2.5 sm:p-4 rounded-lg border border-border bg-card/50">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Sẵn sàng</p>
+            <p className="text-xl sm:text-3xl font-display font-bold">
               {documents.filter((d) => d.status === "READY").length}
             </p>
           </div>
-          <div className="p-4 rounded-lg border border-border bg-card/50">
-            <p className="text-sm text-muted-foreground mb-1">Lỗi</p>
-            <p className="text-3xl font-display font-bold">
+          <div className="p-2.5 sm:p-4 rounded-lg border border-border bg-card/50">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1">Lỗi</p>
+            <p className="text-xl sm:text-3xl font-display font-bold">
               {documents.filter((d) => d.status === "FAILED").length}
             </p>
           </div>
-          <div className="p-4 rounded-lg border border-border bg-card/50">
-            <p className="text-sm text-muted-foreground mb-1">
+          <div className="p-2.5 sm:p-4 rounded-lg border border-border bg-card/50">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-1">
               Dung lượng tổng
             </p>
-            <p className="text-3xl font-display font-bold">
+            <p className="text-xl sm:text-3xl font-display font-bold">
               {totalSize.toFixed(1)} MB
             </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="md:hidden">
+          <button
+            type="button"
+            onClick={() => setIsMobileFiltersOpen((prev) => !prev)}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {isMobileFiltersOpen ? "Ẩn bộ lọc" : "Hiện bộ lọc"}
+          </button>
+        </div>
+
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 ${
+            isMobileFiltersOpen ? "grid" : "hidden"
+          } md:grid`}
+        >
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
               Tìm kiếm
@@ -278,54 +315,66 @@ const AdminDocuments = () => {
             <label className="block text-sm font-medium mb-2 text-foreground">
               Người dùng
             </label>
-            <select
-              value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            <Select
+              value={userFilter || "all"}
+              onValueChange={(value) => setUserFilter(value === "all" ? "" : value)}
             >
-              <option value="">Tất cả người dùng</option>
-              {uniqueUsers.map((user) => (
-                <option key={user} value={user}>
-                  {user}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                <SelectValue placeholder="Tất cả người dùng" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả người dùng</SelectItem>
+                {uniqueUsers.map((user) => (
+                  <SelectItem key={user} value={user}>
+                    {user}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
               Profile
             </label>
-            <select
-              value={profileFilter}
-              onChange={(e) => setProfileFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            <Select
+              value={profileFilter || "all"}
+              onValueChange={(value) => setProfileFilter(value === "all" ? "" : value)}
             >
-              <option value="">Tất cả trợ lý</option>
-              {uniqueProfiles.map((profile) => (
-                <option key={profile} value={profile}>
-                  {profile}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                <SelectValue placeholder="Tất cả trợ lý" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả trợ lý</SelectItem>
+                {uniqueProfiles.map((profile) => (
+                  <SelectItem key={profile} value={profile}>
+                    {profile}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
               Trạng thái
             </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={(value) => setStatusFilter(value === "all" ? "" : value)}
             >
-              <option value="">Tất cả trạng thái</option>
-              <option value="READY">Sẵn sàng</option>
-              <option value="PARSING">Phân tích</option>
-              <option value="CHUNKING">Chia nhỏ</option>
-              <option value="INDEXING">Lập chỉ mục</option>
-              <option value="FAILED">Lỗi</option>
-            </select>
+              <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                <SelectValue placeholder="Tất cả trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="READY">Sẵn sàng</SelectItem>
+                <SelectItem value="PARSING">Phân tích</SelectItem>
+                <SelectItem value="CHUNKING">Chia nhỏ</SelectItem>
+                <SelectItem value="INDEXING">Lập chỉ mục</SelectItem>
+                <SelectItem value="FAILED">Lỗi</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -338,106 +387,132 @@ const AdminDocuments = () => {
           </div>
         </div>
 
-        {/* Documents Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-3">
+          {filteredDocuments.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card px-4 py-10 text-center text-muted-foreground text-sm">
+              Không tìm thấy tài liệu nào
+            </div>
+          ) : (
+            filteredDocuments.map((doc) => (
+              <div key={doc.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <FileText className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{doc.name}</p>
+                    <p className="text-xs text-muted-foreground">{doc.format} • {doc.size}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Người dùng</p>
+                    <p className="text-foreground truncate">{doc.user}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Profile</p>
+                    <p className="text-foreground truncate">{doc.profile}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Chunks</p>
+                    <p className="text-foreground">{doc.chunks}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Ngày tải</p>
+                    <p className="text-foreground">{doc.uploadedAt}</p>
+                  </div>
+                </div>
+
+                <div
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                    doc.status,
+                  )}`}
+                >
+                  {doc.status === "READY" && <Check className="w-3 h-3" />}
+                  {(doc.status === "PARSING" ||
+                    doc.status === "CHUNKING" ||
+                    doc.status === "INDEXING") && (
+                    <Loader className="w-3 h-3 animate-spin" />
+                  )}
+                  {doc.status === "FAILED" && <AlertCircle className="w-3 h-3" />}
+                  {getStatusLabel(doc.status)}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    onClick={() => void openChunkPreview(doc)}
+                    disabled={doc.status !== "READY"}
+                    className="h-9 rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Xem chi tiết chunk"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(doc.id)}
+                    className="h-9 rounded-lg border border-border hover:bg-destructive/10 transition-colors inline-flex items-center justify-center"
+                    title="Xóa"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[1100px]">
               <thead className="bg-card/50 border-b border-border">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Tên file
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Định dạng
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Kích thước
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Người dùng
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Profile
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Trạng thái
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Chunks
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
-                    Hành động
-                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Tên file</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Định dạng</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Kích thước</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Người dùng</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Profile</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Trạng thái</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Chunks</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Hành động</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredDocuments.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-6 py-12 text-center">
-                      <p className="text-muted-foreground">
-                        Không tìm thấy tài liệu nào
-                      </p>
+                      <p className="text-muted-foreground">Không tìm thấy tài liệu nào</p>
                     </td>
                   </tr>
                 ) : (
                   filteredDocuments.map((doc) => (
-                    <tr
-                      key={doc.id}
-                      className="hover:bg-muted/30 transition-colors"
-                    >
+                    <tr key={doc.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <FileText className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium text-foreground truncate">
-                            {doc.name}
-                          </span>
+                          <span className="font-medium text-foreground truncate">{doc.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {doc.format}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {doc.size}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {doc.user}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {doc.profile}
-                        </span>
-                      </td>
+                      <td className="px-6 py-4"><span className="text-sm text-muted-foreground">{doc.format}</span></td>
+                      <td className="px-6 py-4"><span className="text-sm text-muted-foreground">{doc.size}</span></td>
+                      <td className="px-6 py-4"><span className="text-sm text-muted-foreground">{doc.user}</span></td>
+                      <td className="px-6 py-4"><span className="text-sm text-muted-foreground">{doc.profile}</span></td>
                       <td className="px-6 py-4">
                         <div
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
                             doc.status,
                           )}`}
                         >
-                          {doc.status === "READY" && (
-                            <Check className="w-3 h-3" />
-                          )}
+                          {doc.status === "READY" && <Check className="w-3 h-3" />}
                           {(doc.status === "PARSING" ||
                             doc.status === "CHUNKING" ||
                             doc.status === "INDEXING") && (
                             <Loader className="w-3 h-3 animate-spin" />
                           )}
-                          {doc.status === "FAILED" && (
-                            <AlertCircle className="w-3 h-3" />
-                          )}
+                          {doc.status === "FAILED" && <AlertCircle className="w-3 h-3" />}
                           {getStatusLabel(doc.status)}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {doc.chunks}
-                        </span>
-                      </td>
+                      <td className="px-6 py-4"><span className="text-sm text-muted-foreground">{doc.chunks}</span></td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           {doc.status === "READY" && (

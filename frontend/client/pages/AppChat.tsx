@@ -41,9 +41,11 @@ import {
   updateProfile,
   updateChatSessionTitle,
   uploadDocument,
+  listProfileModelOptions,
   type ChatMessageResponse,
   type DocumentResponse,
   type ChatSessionResponse,
+  type SystemModelEntry,
 } from "@/lib/api";
 import {
   getAllProfileIconNames,
@@ -94,6 +96,7 @@ type AssistantDraft = {
   topic: string;
   description: string;
   iconName: string;
+  modelOverride: string;
 };
 
 const QUICK_ICON_NAMES = [
@@ -172,6 +175,7 @@ const AppChat = () => {
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [modelOptions, setModelOptions] = useState<SystemModelEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -253,6 +257,18 @@ const AppChat = () => {
   }, [loadDocuments]);
 
   useEffect(() => {
+    const loadModelOptions = async () => {
+      try {
+        const response = await listProfileModelOptions();
+        setModelOptions(response.models);
+      } catch {
+        setModelOptions([]);
+      }
+    };
+    void loadModelOptions();
+  }, []);
+
+  useEffect(() => {
     if (searchParams.get("panel") === "documents") {
       setIsDocumentsVisible(true);
     }
@@ -277,9 +293,10 @@ const AppChat = () => {
         setProfileIconName(profile.icon_name);
         setAssistantDraft({
           name: profile.name,
-          topic: profile.topic,
+          topic: profile.topic ?? "",
           description: profile.description ?? "",
           iconName: profile.icon_name,
+          modelOverride: profile.model_override ?? "",
         });
       } catch {
         setProfileName(null);
@@ -488,6 +505,7 @@ const AppChat = () => {
         topic: assistantDraft.topic.trim() || undefined,
         description: assistantDraft.description.trim() || undefined,
         icon_name: assistantDraft.iconName,
+        model_override: assistantDraft.modelOverride.trim() || undefined,
       });
       setProfileName(updated.name);
       setProfileIconName(updated.icon_name);
@@ -496,6 +514,7 @@ const AppChat = () => {
         topic: updated.topic ?? "",
         description: updated.description ?? "",
         iconName: updated.icon_name,
+        modelOverride: updated.model_override ?? "",
       });
       setIsAssistantDialogOpen(false);
       setAssistantIconQuery("");
@@ -1221,6 +1240,31 @@ const AppChat = () => {
                   maxLength={2000}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent max-h-[28dvh] sm:max-h-[35vh] resize-y"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  Model (OpenRouter)
+                </label>
+                <select
+                  value={assistantDraft?.modelOverride ?? ""}
+                  onChange={(event) =>
+                    setAssistantDraft((prev) =>
+                      prev ? { ...prev, modelOverride: event.target.value } : prev,
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                >
+                  <option value="">Mặc định hệ thống</option>
+                  {modelOptions.map((model) => (
+                    <option key={model.model_name} value={model.model_name}>
+                      {model.model_name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Danh sách model do admin cấu hình ở mục Cấu hình Model.
+                </p>
               </div>
 
               <div className="space-y-3">

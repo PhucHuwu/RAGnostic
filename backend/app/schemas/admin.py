@@ -21,6 +21,4 @@ class AdminResetPasswordRequest(BaseModel):
 
 
 class SystemModelConfigRequest(BaseModel):
-    provider: str = Field(default="openrouter", min_length=1, max_length=120)
-    model_name: str = Field(min_length=1, max_length=255)
-    params: dict = Field(default_factory=dict)
+    models: list[dict] = Field(default_factory=list)

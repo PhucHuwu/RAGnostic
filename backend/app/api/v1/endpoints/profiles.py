@@ -107,3 +107,22 @@ def delete_profile(
     profile.updated_at = datetime.now(UTC)
     db.commit()
     return {"message": "Profile deleted"}
+
+
+@router.get("/models/options")
+def list_model_options(current_user: CurrentUser, db: DbSession) -> dict:
+    _ = current_user
+    config = store.get_system_model_config(db)
+    models = config.get("models") if isinstance(config, dict) else []
+    if not isinstance(models, list):
+        models = []
+    normalized: list[dict] = []
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        model_name = str(item.get("model_name") or "").strip()
+        if not model_name:
+            continue
+        params = item.get("params") if isinstance(item.get("params"), dict) else {}
+        normalized.append({"model_name": model_name, "params": params})
+    return {"provider": "openrouter", "models": normalized}
