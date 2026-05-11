@@ -13,7 +13,11 @@ from app.schemas.admin import (
     SystemModelConfigRequest,
 )
 from app.schemas.auth import UserInfo
-from app.schemas.documents import DocumentResponse
+from app.schemas.documents import (
+    DocumentChunkDetailResponse,
+    DocumentChunksResponse,
+    DocumentResponse,
+)
 from app.services.store import store
 
 router = APIRouter()
@@ -177,6 +181,41 @@ def admin_delete_document(
         after_json={"status": "DELETED"},
     )
     return {"message": "Document deleted"}
+
+
+@router.get("/documents/{document_id}/chunks")
+def admin_get_document_chunks(
+    document_id: str,
+    request: Request,
+    _: AdminUser,
+    db: DbSession,
+) -> DocumentChunksResponse:
+    document = store.get_document(db, document_id)
+    if document is None:
+        raise_api_error(request, status.HTTP_404_NOT_FOUND, "NOT_FOUND", "Không tìm thấy tài liệu")
+
+    chunks = store.list_chunks_for_document(db, document.id)
+    profile = store.get_profile(db, document.profile_id)
+    return DocumentChunksResponse(
+        document_id=document.id,
+        profile_id=document.profile_id,
+        total_chunks=len(chunks),
+        strategy=profile.chunk_strategy if profile is not None else None,
+        items=[
+            DocumentChunkDetailResponse(
+                id=item.id,
+                chunk_index=item.chunk_index,
+                token_count=item.token_count,
+                char_count=item.char_count,
+                section_title=item.section_title,
+                page_no=item.page_no,
+                source_ref=item.source_ref,
+                chunk_hash=item.chunk_hash,
+                content=item.content,
+            )
+            for item in chunks
+        ],
+    )
 
 
 @router.get("/system-config/model")

@@ -318,9 +318,10 @@ def _chunk_ordered_blocks(
     current_title: str | None = None
     current_source: str | None = None
     current_body: list[str] = []
+    pending_headers: list[str] = []
 
     def flush_section() -> None:
-        nonlocal current_title, current_source, current_body
+        nonlocal current_title, current_source, current_body, pending_headers
         body_text = "\n\n".join(current_body).strip()
         if current_title and body_text:
             combined = f"{current_title}\n\n{body_text}"
@@ -332,6 +333,8 @@ def _chunk_ordered_blocks(
                 }
             )
         elif body_text:
+            if pending_headers:
+                body_text = "\n".join(pending_headers) + "\n\n" + body_text
             sections.append(
                 {
                     "content": body_text,
@@ -340,13 +343,7 @@ def _chunk_ordered_blocks(
                 }
             )
         elif current_title:
-            sections.append(
-                {
-                    "content": current_title,
-                    "section_title": current_title,
-                    "source_ref": current_source or "section",
-                }
-            )
+            pending_headers.append(current_title)
         current_title = None
         current_source = None
         current_body = []
@@ -365,6 +362,9 @@ def _chunk_ordered_blocks(
 
         if current_source is None:
             current_source = f"order-{block['order']}:{block['source_ref']}"
+        if pending_headers and current_title is None:
+            current_body.append("\n".join(pending_headers))
+            pending_headers = []
         current_body.append(content)
 
     if current_title is not None or current_body:
@@ -382,7 +382,32 @@ def _chunk_ordered_blocks(
                     "source_ref": f"{section['source_ref']}:part-{idx + 1}",
                 }
             )
-    return pieces
+
+    if not pieces:
+        return []
+
+    min_chars = max(80, int(chunk_size * 0.2))
+    merged_pieces: list[dict] = []
+    for piece in pieces:
+        content = _sanitize_text(piece.get("content", ""))
+        if not content:
+            continue
+        if merged_pieces and len(content) < min_chars:
+            prev = merged_pieces[-1]
+            prev_content = _sanitize_text(prev.get("content", ""))
+            prev["content"] = _sanitize_text(f"{prev_content}\n\n{content}")
+            continue
+        merged_pieces.append(dict(piece))
+
+    if chunk_overlap > 0 and len(merged_pieces) > 1:
+        for idx in range(1, len(merged_pieces)):
+            prev_content = _sanitize_text(merged_pieces[idx - 1].get("content", ""))
+            current_content = _sanitize_text(merged_pieces[idx].get("content", ""))
+            prefix = prev_content[-chunk_overlap:].strip()
+            if prefix:
+                merged_pieces[idx]["content"] = _sanitize_text(f"{prefix}\n{current_content}")
+
+    return merged_pieces
 
 
 def _tokenize(text: str) -> set[str]:

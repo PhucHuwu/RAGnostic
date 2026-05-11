@@ -58,6 +58,19 @@ echo "Starting frontend local on :${FRONTEND_PORT}"
 nohup env NEXT_PUBLIC_API_BASE_URL="http://localhost:${BACKEND_PORT}/api/v1" npm --prefix "${FRONTEND_DIR}" run dev -- --port "${FRONTEND_PORT}" \
   > /tmp/opencode/ragnostic-frontend-local.log 2>&1 &
 
-sleep 2
+for _ in $(seq 1 30); do
+  if curl -s --max-time 2 "http://localhost:${BACKEND_PORT}/api/v1/health" >/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+for _ in $(seq 1 30); do
+  if curl -s --max-time 2 "http://localhost:${FRONTEND_PORT}" >/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
 echo "Local backend:  http://localhost:${BACKEND_PORT}/api/v1/health"
 echo "Local frontend: http://localhost:${FRONTEND_PORT}"

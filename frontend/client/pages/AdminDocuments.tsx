@@ -15,7 +15,10 @@ import {
   ApiError,
   deleteAdminDocument,
   listAdminDocuments,
+  getAdminDocumentChunks,
+  listAdminUsers,
   type DocumentResponse,
+  type DocumentChunkDetailResponse,
 } from "@/lib/api";
 import {
   ApiErrorState,
@@ -35,17 +38,20 @@ interface AdminDocument {
   chunks: number;
 }
 
-function mapDocument(item: DocumentResponse): AdminDocument {
+function mapDocument(
+  item: DocumentResponse,
+  resolveUsername: (userId: string) => string,
+): AdminDocument {
   return {
     id: item.id,
     name: item.file_name,
     format: item.file_ext.toUpperCase(),
     size: `${(item.file_size_bytes / 1024 / 1024).toFixed(1)} MB`,
-    user: item.owner_user_id,
+    user: resolveUsername(item.owner_user_id),
     profile: item.profile_id,
     status: item.status === "DELETED" ? "FAILED" : item.status,
     uploadedAt: new Date(item.uploaded_at).toLocaleDateString("vi-VN"),
-    chunks: 0,
+    chunks: item.chunk_count,
   };
 }
 
@@ -59,6 +65,11 @@ const AdminDocuments = () => {
   const [userFilter, setUserFilter] = useState("");
   const [profileFilter, setProfileFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [previewDoc, setPreviewDoc] = useState<AdminDocument | null>(null);
+  const [chunkDetails, setChunkDetails] = useState<DocumentChunkDetailResponse[]>([]);
+  const [chunkStrategy, setChunkStrategy] = useState<string | null>(null);
+  const [isChunkLoading, setIsChunkLoading] = useState(false);
+  const [chunkError, setChunkError] = useState<string | null>(null);
 
   const loadDocuments = useCallback(async (isManualRetry = false) => {
     if (isManualRetry) {
@@ -68,8 +79,16 @@ const AdminDocuments = () => {
     }
     setError(null);
     try {
-      const data = await listAdminDocuments();
-      setDocuments(data.map(mapDocument));
+      const [data, users] = await Promise.all([
+        listAdminDocuments(),
+        listAdminUsers(),
+      ]);
+      const usernameById = new Map(users.map((user) => [user.id, user.username]));
+      setDocuments(
+        data.map((item) =>
+          mapDocument(item, (userId) => usernameById.get(userId) ?? userId),
+        ),
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -115,6 +134,27 @@ const AdminDocuments = () => {
       } else {
         setError("Không thể xóa tài liệu");
       }
+    }
+  };
+
+  const openChunkPreview = async (doc: AdminDocument) => {
+    setPreviewDoc(doc);
+    setChunkDetails([]);
+    setChunkStrategy(null);
+    setChunkError(null);
+    setIsChunkLoading(true);
+    try {
+      const response = await getAdminDocumentChunks(doc.id);
+      setChunkDetails(response.items);
+      setChunkStrategy(response.strategy);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setChunkError(err.message);
+      } else {
+        setChunkError("Không thể tải chi tiết các chunk");
+      }
+    } finally {
+      setIsChunkLoading(false);
     }
   };
 
@@ -402,8 +442,9 @@ const AdminDocuments = () => {
                         <div className="flex items-center gap-2">
                           {doc.status === "READY" && (
                             <button
+                              onClick={() => void openChunkPreview(doc)}
                               className="p-2 hover:bg-muted rounded-lg transition-colors"
-                              title="Xem trước"
+                              title="Xem chi tiết chunk"
                             >
                               <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                             </button>
@@ -424,6 +465,62 @@ const AdminDocuments = () => {
             </table>
           </div>
         </div>
+
+        {previewDoc && (
+          <div className="fixed inset-0 z-50 bg-black/50 p-4 sm:p-6 flex items-center justify-center">
+            <div className="w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-xl border border-border bg-card shadow-xl flex flex-col">
+              <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-lg font-display font-bold text-foreground truncate">
+                    Chi tiết chunk: {previewDoc.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Chiến lược: {chunkStrategy ?? "N/A"} • Tổng chunk: {chunkDetails.length}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-muted/50 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-5 overflow-y-auto space-y-3">
+                {isChunkLoading && (
+                  <div className="text-sm text-muted-foreground">Đang tải dữ liệu chunk...</div>
+                )}
+
+                {!isChunkLoading && chunkError && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                    {chunkError}
+                  </div>
+                )}
+
+                {!isChunkLoading && !chunkError && chunkDetails.length === 0 && (
+                  <div className="text-sm text-muted-foreground">Tài liệu chưa có chunk để hiển thị.</div>
+                )}
+
+                {!isChunkLoading &&
+                  !chunkError &&
+                  chunkDetails.map((chunk) => (
+                    <div key={chunk.id} className="rounded-lg border border-border bg-card/50">
+                      <div className="px-3 py-2 border-b border-border text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                        <span># {chunk.chunk_index}</span>
+                        <span>Token: {chunk.token_count}</span>
+                        <span>Ký tự: {chunk.char_count}</span>
+                        {chunk.section_title && <span>Mục: {chunk.section_title}</span>}
+                        {chunk.page_no !== null && <span>Trang: {chunk.page_no}</span>}
+                      </div>
+                      <pre className="p-3 text-sm whitespace-pre-wrap break-words text-foreground overflow-x-auto">
+                        {chunk.content}
+                      </pre>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

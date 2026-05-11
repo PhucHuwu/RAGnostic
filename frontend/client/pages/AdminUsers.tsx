@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, MoreVertical, Lock, Shield, Trash2 } from "lucide-react";
+import { Search, Lock, Shield, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/layouts/AdminLayout";
 import {
   updateAdminUserStatus,
@@ -12,6 +12,13 @@ import {
   type AdminUserResponse,
 } from "@/lib/api";
 import { ApiErrorState, TableSkeleton } from "@/components/common/api-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface User {
   id: string;
@@ -55,11 +62,12 @@ const AdminUsers = () => {
     "" | "active" | "inactive" | "suspended"
   >("");
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [modalAction, setModalAction] = useState<
     "change-role" | "change-status" | "reset-password" | "delete"
   >("change-role");
   const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [isActing, setIsActing] = useState(false);
 
   const nextStatus = (status: User["status"]): User["status"] => {
     if (status === "active") return "suspended";
@@ -112,54 +120,59 @@ const AdminUsers = () => {
     [users, searchQuery, roleFilter, statusFilter],
   );
 
+  const selectedUser = useMemo(
+    () => users.find((user) => user.id === selectedUserId) ?? null,
+    [users, selectedUserId],
+  );
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedUserId(null);
+    setResetPasswordValue("");
+    setModalAction("change-role");
+    setIsActing(false);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setRoleFilter("");
+    setStatusFilter("");
+  };
+
   const handleOpenModal = (
     user: User,
     action: "change-role" | "change-status" | "reset-password" | "delete",
   ) => {
-    setSelectedUser(user);
+    if (isActing) {
+      return;
+    }
+    setSelectedUserId(user.id);
     setModalAction(action);
     setResetPasswordValue("");
     setModalOpen(true);
   };
 
   const handleConfirmAction = () => {
-    if (!selectedUser) return;
+    if (!selectedUser || isActing) return;
 
     const run = async () => {
+      setIsActing(true);
       try {
         if (modalAction === "change-role") {
           const nextRole = selectedUser.role === "ADMIN" ? "USER" : "ADMIN";
           await updateAdminUserRole(selectedUser.id, nextRole);
-          setUsers((prev) =>
-            prev.map((u) =>
-              u.id === selectedUser.id
-                ? {
-                    ...u,
-                    role: nextRole,
-                  }
-                : u,
-            ),
-          );
         } else if (modalAction === "reset-password") {
           if (resetPasswordValue.trim().length < 6) {
             setError("Mật khẩu mới phải có ít nhất 6 ký tự");
+            setIsActing(false);
             return;
           }
           await resetAdminUserPassword(selectedUser.id, resetPasswordValue.trim());
         } else if (modalAction === "change-status") {
           const newStatus = nextStatus(selectedUser.status);
           await updateAdminUserStatus(selectedUser.id, toApiStatus(newStatus));
-          setUsers((prev) =>
-            prev.map((u) =>
-              u.id === selectedUser.id
-                ? {
-                    ...u,
-                    status: newStatus,
-                  }
-                : u,
-            ),
-          );
         }
+        await loadUsers();
       } catch (err) {
         if (err instanceof ApiError) {
           setError(err.message);
@@ -167,8 +180,7 @@ const AdminUsers = () => {
           setError("Không thể thực hiện thao tác người dùng");
         }
       } finally {
-        setModalOpen(false);
-        setSelectedUser(null);
+        closeModal();
       }
     };
 
@@ -221,7 +233,7 @@ const AdminUsers = () => {
           />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
               Tìm kiếm
@@ -230,6 +242,8 @@ const AdminUsers = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
+                name="admin-user-search"
+                autoComplete="off"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm theo tên hoặc email..."
@@ -242,31 +256,47 @@ const AdminUsers = () => {
             <label className="block text-sm font-medium mb-2 text-foreground">
               Vai trò
             </label>
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as any)}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            <Select
+              value={roleFilter || "all"}
+              onValueChange={(value) =>
+                setRoleFilter(value === "all" ? "" : (value as "ADMIN" | "USER"))
+              }
             >
-              <option value="">Tất cả vai trò</option>
-              <option value="ADMIN">Admin</option>
-              <option value="USER">User</option>
-            </select>
+              <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                <SelectValue placeholder="Tất cả vai trò" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả vai trò</SelectItem>
+                <SelectItem value="ADMIN">Admin</SelectItem>
+                <SelectItem value="USER">User</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2 text-foreground">
               Trạng thái
             </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full px-4 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={(value) =>
+                setStatusFilter(
+                  value === "all"
+                    ? ""
+                    : (value as "active" | "inactive" | "suspended"),
+                )
+              }
             >
-              <option value="">Tất cả trạng thái</option>
-              <option value="active">Hoạt động</option>
-              <option value="inactive">Không hoạt động</option>
-              <option value="suspended">Tạm khóa</option>
-            </select>
+              <SelectTrigger className="w-full bg-input text-foreground text-sm">
+                <SelectValue placeholder="Tất cả trạng thái" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="active">Hoạt động</SelectItem>
+                <SelectItem value="inactive">Không hoạt động</SelectItem>
+                <SelectItem value="suspended">Tạm khóa</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -274,15 +304,79 @@ const AdminUsers = () => {
               Kết quả
             </label>
             <div className="px-4 py-2 rounded-lg border border-border bg-muted/30 text-foreground text-sm font-medium">
-              {filteredUsers.length} người dùng
+               {filteredUsers.length} người dùng
             </div>
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-3">
+          {filteredUsers.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card px-4 py-10 text-center text-muted-foreground text-sm">
+              Không tìm thấy người dùng nào
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <div key={user.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground truncate">{user.username}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary shrink-0">
+                    {user.role === "ADMIN" && <Shield className="w-3 h-3" />}
+                    {user.role === "ADMIN" ? "Admin" : "User"}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">Trạng thái</span>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-1 rounded-full font-semibold ${getStatusBadge(
+                      user.status,
+                    )}`}
+                  >
+                    {getStatusLabel(user.status)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-muted-foreground">Đăng nhập cuối</span>
+                  <span className="text-foreground text-right">{user.lastLogin}</span>
+                </div>
+
+                <div className="pt-1 grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleOpenModal(user, "change-status")}
+                    className="h-9 rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center justify-center"
+                    title="Đổi trạng thái"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenModal(user, "change-role")}
+                    className="h-9 rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center justify-center"
+                    title="Đổi vai trò"
+                  >
+                    <Shield className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleOpenModal(user, "reset-password")}
+                    className="h-9 rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center justify-center"
+                    title="Reset mật khẩu"
+                  >
+                    <Lock className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[980px]">
               <thead className="bg-card/50 border-b border-border">
                 <tr>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">
@@ -309,34 +403,21 @@ const AdminUsers = () => {
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
-                      <p className="text-muted-foreground">
-                        Không tìm thấy người dùng nào
-                      </p>
+                      <p className="text-muted-foreground">Không tìm thấy người dùng nào</p>
                     </td>
                   </tr>
                 ) : (
                   filteredUsers.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="hover:bg-muted/30 transition-colors"
-                    >
+                    <tr key={user.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
-                        <span className="font-medium text-foreground">
-                          {user.username}
-                        </span>
+                        <span className="font-medium text-foreground">{user.username}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {user.email}
-                        </span>
+                        <span className="text-sm text-muted-foreground">{user.email}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary">
-                          {user.role === "ADMIN" ? (
-                            <Shield className="w-3 h-3" />
-                          ) : (
-                            <></>
-                          )}
+                          {user.role === "ADMIN" && <Shield className="w-3 h-3" />}
                           {user.role === "ADMIN" ? "Admin" : "User"}
                         </div>
                       </td>
@@ -350,46 +431,40 @@ const AdminUsers = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">
-                          {user.lastLogin}
-                        </span>
+                        <span className="text-sm text-muted-foreground">{user.lastLogin}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() =>
-                              handleOpenModal(user, "change-status")
-                            }
-                            className="px-3 py-2 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors"
+                            onClick={() => handleOpenModal(user, "change-status")}
+                            className="px-2 lg:px-3 py-2 rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted/50 transition-colors inline-flex items-center gap-1.5"
                             title="Đổi trạng thái"
                           >
-                            {user.status === "active"
-                              ? "Tạm khóa"
-                              : user.status === "suspended"
-                                ? "Vô hiệu"
-                                : "Kích hoạt"}
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden lg:inline">
+                              {user.status === "active"
+                                ? "Tạm khóa"
+                                : user.status === "suspended"
+                                  ? "Vô hiệu"
+                                  : "Kích hoạt"}
+                            </span>
                           </button>
                           <button
                             onClick={() => handleOpenModal(user, "change-role")}
-                            className="p-2 hover:bg-muted rounded-lg transition-colors"
+                            className="px-2 lg:px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center gap-1.5"
                             title="Đổi vai trò"
                           >
                             <Shield className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                            <span className="hidden lg:inline text-xs font-semibold text-foreground">Vai trò</span>
                           </button>
                           <button
-                            onClick={() =>
-                              handleOpenModal(user, "reset-password")
-                            }
-                            className="p-2 hover:bg-muted rounded-lg transition-colors"
+                            onClick={() => handleOpenModal(user, "reset-password")}
+                            className="px-2 lg:px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors inline-flex items-center gap-1.5"
                             title="Reset mật khẩu"
                           >
                             <Lock className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                            <span className="hidden lg:inline text-xs font-semibold text-foreground">Mật khẩu</span>
                           </button>
-                          <div className="relative group">
-                            <button className="p-2 hover:bg-muted rounded-lg transition-colors">
-                              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                            </button>
-                          </div>
                         </div>
                       </td>
                     </tr>
@@ -431,6 +506,8 @@ const AdminUsers = () => {
                   <input
                     id="reset-password"
                     type="password"
+                    name="admin-reset-new-password"
+                    autoComplete="new-password"
                     value={resetPasswordValue}
                     onChange={(e) => setResetPasswordValue(e.target.value)}
                     placeholder="Tối thiểu 6 ký tự"
@@ -440,11 +517,8 @@ const AdminUsers = () => {
               )}
               <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    setModalOpen(false);
-                    setSelectedUser(null);
-                    setResetPasswordValue("");
-                  }}
+                  onClick={closeModal}
+                  disabled={isActing}
                   className="flex-1 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted/50 font-semibold transition-colors"
                 >
                   Hủy
@@ -452,15 +526,29 @@ const AdminUsers = () => {
                 <button
                   onClick={handleConfirmAction}
                   disabled={
-                    modalAction === "reset-password" &&
-                    resetPasswordValue.trim().length < 6
+                    isActing ||
+                    (modalAction === "reset-password" &&
+                      resetPasswordValue.trim().length < 6)
                   }
                   className="flex-1 px-4 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
                 >
-                  Xác nhận
+                  {isActing ? "Đang xử lý..." : "Xác nhận"}
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {filteredUsers.length === 0 && users.length > 0 && !isLoading && (
+          <div className="rounded-lg border border-border bg-card/60 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3">
+            <span>Không có kết quả do bộ lọc hiện tại.</span>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="px-3 py-1.5 rounded-md border border-border text-foreground hover:bg-muted/50 transition-colors"
+            >
+              Xóa bộ lọc
+            </button>
           </div>
         )}
       </div>

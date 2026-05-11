@@ -43,6 +43,27 @@ interface RequestOptions {
   timeoutMs?: number;
 }
 
+let refreshInFlight: Promise<boolean> | null = null;
+let sessionExpiredHandled = false;
+
+function handleSessionExpiredRedirect() {
+  if (typeof window === "undefined" || sessionExpiredHandled) {
+    return;
+  }
+  sessionExpiredHandled = true;
+  clearAuthSession();
+  window.dispatchEvent(new Event("ragnostic:session-expired"));
+
+  const nextPath =
+    window.location.pathname + window.location.search + window.location.hash;
+  const nextQuery =
+    nextPath && nextPath !== "/" ? `?next=${encodeURIComponent(nextPath)}` : "";
+
+  window.setTimeout(() => {
+    window.location.replace(`/login${nextQuery}`);
+  }, 300);
+}
+
 async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
@@ -66,6 +87,17 @@ async function refreshAccessToken() {
   };
   updateAccessToken(payload.access_token, payload.refresh_token);
   return true;
+}
+
+async function refreshAccessTokenWithLock() {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = refreshAccessToken().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 export async function apiRequest<T>(
@@ -136,17 +168,23 @@ export async function apiRequest<T>(
   let response = await runRequest();
 
   if (response.status === 401 && auth) {
-    const refreshed = await refreshAccessToken();
+    const refreshed = await refreshAccessTokenWithLock();
     if (refreshed) {
       const nextToken = getAccessToken();
       if (nextToken) {
         requestHeaders.Authorization = `Bearer ${nextToken}`;
       }
       response = await runRequest();
+    } else {
+      handleSessionExpiredRedirect();
+      throw new ApiError("Phiên đã hết hạn, vui lòng đăng nhập lại.", 401, "UNAUTHORIZED");
     }
   }
 
   if (!response.ok) {
+    if (response.status === 401 && auth) {
+      handleSessionExpiredRedirect();
+    }
     const errorPayload = (await response.json().catch(() => null)) as {
       message?: string;
       code?: string;
@@ -500,6 +538,10 @@ export function resetAdminUserPassword(userId: string, newPassword: string) {
 
 export function listAdminDocuments() {
   return apiRequest<DocumentResponse[]>("/admin/documents");
+}
+
+export function getAdminDocumentChunks(documentId: string) {
+  return apiRequest<DocumentChunksResponse>(`/admin/documents/${documentId}/chunks`);
 }
 
 export function deleteAdminDocument(documentId: string) {
