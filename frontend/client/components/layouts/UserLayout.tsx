@@ -17,7 +17,6 @@ import {
   ChevronsRight,
   LogOut,
   Menu,
-  Settings,
   UserCircle2,
 } from "lucide-react";
 import { clearAuthSession, getCurrentUser } from "@/lib/auth";
@@ -260,7 +259,7 @@ const UserLayout = ({ children }: UserLayoutProps) => {
       <div className="w-full lg:flex">
         <aside
           className={`hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] border-r border-border bg-sidebar/40 overflow-hidden transition-[width] duration-300 ease-in-out ${
-            isSidebarCollapsed ? "lg:w-20" : "lg:w-72"
+            isSidebarCollapsed ? "lg:w-20" : "lg:w-64"
           }`}
         >
           <div className="p-5 overflow-y-auto overflow-x-hidden">
@@ -316,20 +315,6 @@ const UserLayout = ({ children }: UserLayoutProps) => {
           </div>
 
           <div className="mt-auto p-5 border-t border-border space-y-2">
-            <button
-              className={`flex items-center rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/20 transition-colors ${
-                isSidebarCollapsed
-                  ? "justify-start p-0 h-11 w-11"
-                  : "w-full h-11 justify-start p-0"
-              }`}
-              title="Thiết lập"
-              aria-label="Thiết lập"
-            >
-              <span className="w-11 h-11 shrink-0 inline-flex items-center justify-center">
-                <Settings className="w-5 h-5 shrink-0" />
-              </span>
-              {!isSidebarCollapsed && <span className="whitespace-nowrap">Thiết lập</span>}
-            </button>
             <button
               onClick={() => void handleLogout()}
               disabled={isLoggingOut}

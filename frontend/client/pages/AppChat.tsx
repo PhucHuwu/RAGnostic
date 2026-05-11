@@ -75,6 +75,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UiSession {
   id: string;
@@ -109,6 +116,8 @@ const QUICK_ICON_NAMES = [
   "ShieldCheck",
   "MessageCircleHeart",
 ];
+
+const SYSTEM_DEFAULT_MODEL_VALUE = "__system_default__";
 
 function formatIconLabel(name: string) {
   return name.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
@@ -176,6 +185,8 @@ const AppChat = () => {
   const [isUploadingDocuments, setIsUploadingDocuments] = useState(false);
   const [documentsError, setDocumentsError] = useState<string | null>(null);
   const [modelOptions, setModelOptions] = useState<SystemModelEntry[]>([]);
+  const [selectedModelOverride, setSelectedModelOverride] = useState("");
+  const [isSavingModelOverride, setIsSavingModelOverride] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -298,10 +309,12 @@ const AppChat = () => {
           iconName: profile.icon_name,
           modelOverride: profile.model_override ?? "",
         });
+        setSelectedModelOverride(profile.model_override ?? "");
       } catch {
         setProfileName(null);
         setProfileIconName(null);
         setAssistantDraft(null);
+        setSelectedModelOverride("");
       }
     };
 
@@ -603,6 +616,57 @@ const AppChat = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleChangeModelOverride = async (nextValue: string) => {
+    if (!profileId || isSavingModelOverride) {
+      return;
+    }
+
+    const previousValue = selectedModelOverride;
+    setSelectedModelOverride(nextValue);
+    setAssistantDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            modelOverride: nextValue,
+          }
+        : prev,
+    );
+
+    setIsSavingModelOverride(true);
+    try {
+      const updated = await updateProfile(profileId, {
+        model_override: nextValue.trim() || undefined,
+      });
+      const persisted = updated.model_override ?? "";
+      setSelectedModelOverride(persisted);
+      setAssistantDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              modelOverride: persisted,
+            }
+          : prev,
+      );
+    } catch (err) {
+      setSelectedModelOverride(previousValue);
+      setAssistantDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              modelOverride: previousValue,
+            }
+          : prev,
+      );
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Không thể cập nhật model cho trợ lý");
+      }
+    } finally {
+      setIsSavingModelOverride(false);
     }
   };
 
@@ -1143,6 +1207,32 @@ const AppChat = () => {
                 disabled={isLoading || !activeSessionId}
                 className="flex-1 h-11 px-4 py-3 rounded-lg border border-border bg-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all disabled:opacity-50"
               />
+              <Select
+                value={selectedModelOverride || SYSTEM_DEFAULT_MODEL_VALUE}
+                onValueChange={(value) => {
+                  void handleChangeModelOverride(
+                    value === SYSTEM_DEFAULT_MODEL_VALUE ? "" : value,
+                  );
+                }}
+                disabled={!activeSessionId || isSavingModelOverride}
+              >
+                <SelectTrigger
+                  className="h-11 w-[100px] sm:w-[150px] border-border bg-input text-foreground"
+                  title="Model trả lời"
+                >
+                  <SelectValue placeholder="Mặc định hệ thống" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SYSTEM_DEFAULT_MODEL_VALUE}>
+                    Mặc định hệ thống
+                  </SelectItem>
+                  {modelOptions.map((model) => (
+                    <SelectItem key={model.model_name} value={model.model_name}>
+                      {model.model_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <button
                 onClick={() => void handleSendMessage()}
                 disabled={isLoading || !inputValue.trim() || !activeSessionId}
@@ -1240,31 +1330,6 @@ const AppChat = () => {
                   maxLength={2000}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent max-h-[28dvh] sm:max-h-[35vh] resize-y"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Model (OpenRouter)
-                </label>
-                <select
-                  value={assistantDraft?.modelOverride ?? ""}
-                  onChange={(event) =>
-                    setAssistantDraft((prev) =>
-                      prev ? { ...prev, modelOverride: event.target.value } : prev,
-                    )
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="">Mặc định hệ thống</option>
-                  {modelOptions.map((model) => (
-                    <option key={model.model_name} value={model.model_name}>
-                      {model.model_name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Danh sách model do admin cấu hình ở mục Cấu hình Model.
-                </p>
               </div>
 
               <div className="space-y-3">

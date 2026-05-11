@@ -151,8 +151,11 @@ export async function apiRequest<T>(
         error instanceof DOMException &&
         error.name === "AbortError"
       ) {
+        const timeoutMessage = isFormData
+          ? "Yêu cầu quá thời gian cho phép, vui lòng thử lại với tệp nhỏ hơn."
+          : "Yêu cầu quá thời gian cho phép, vui lòng thử lại.";
         throw new ApiError(
-          "Yêu cầu quá thời gian cho phép, vui lòng thử lại với tệp nhỏ hơn.",
+          timeoutMessage,
           408,
           "REQUEST_TIMEOUT",
         );
