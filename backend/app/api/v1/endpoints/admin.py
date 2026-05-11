@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Request, status
 
 from app.api.deps import AdminUser, DbSession, raise_api_error
+from app.core.config import settings
 from app.core.security import UserRole, UserStatus, hash_password
 from app.schemas.admin import (
     AdminResetPasswordRequest,
@@ -274,6 +275,17 @@ def update_system_model_config(
             status.HTTP_400_BAD_REQUEST,
             "VALIDATION_ERROR",
             "Danh sách model không hợp lệ",
+        )
+
+    has_default_model = any(
+        item.get("model_name") == settings.openrouter_model for item in normalized_models
+    )
+    if not has_default_model:
+        raise_api_error(
+            request,
+            status.HTTP_400_BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "Không được xóa model mặc định hệ thống",
         )
 
     after = store.update_system_model_config(

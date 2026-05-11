@@ -7,6 +7,8 @@ import { ApiError, getModelConfig, updateModelConfig, type SystemModelEntry } fr
 import { ApiErrorState } from "@/components/common/api-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const SYSTEM_DEFAULT_MODEL_NAME = "nvidia/nemotron-3-super-120b-a12b:free";
+
 type ModelRow = {
   id: string;
   model_name: string;
@@ -215,14 +217,26 @@ const AdminModel = () => {
             </div>
 
             <div className="space-y-3">
-              {rows.map((row) => (
+              {rows.map((row) => {
+                const isSystemDefaultModel =
+                  row.model_name.trim() === SYSTEM_DEFAULT_MODEL_NAME;
+
+                return (
                 <div key={row.id} className="rounded-lg border border-border p-3 sm:p-4 space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Model name</label>
+                    <div className="mb-1 flex items-center gap-2">
+                      <label className="block text-xs font-medium text-muted-foreground">Model name</label>
+                      {isSystemDefaultModel && (
+                        <span className="inline-flex items-center rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Model mặc định
+                        </span>
+                      )}
+                    </div>
                     <input
                       value={row.model_name}
                       onChange={(e) => updateRow(row.id, { model_name: e.target.value })}
                       placeholder="vd: openai/gpt-4.1-mini"
+                      disabled={isSystemDefaultModel}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-input text-foreground text-sm"
                     />
                   </div>
@@ -290,7 +304,8 @@ const AdminModel = () => {
                       <button
                         type="button"
                         onClick={() => removeRow(row.id)}
-                        disabled={rows.length <= 1}
+                        disabled={rows.length <= 1 || isSystemDefaultModel}
+                        title={isSystemDefaultModel ? "Model mặc định hệ thống không thể xóa" : "Xóa model"}
                         className="w-full sm:w-auto h-10 px-3 rounded-lg border border-border hover:bg-destructive/10 transition-colors disabled:opacity-40"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -298,7 +313,8 @@ const AdminModel = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex flex-row gap-2">

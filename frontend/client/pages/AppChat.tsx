@@ -118,6 +118,24 @@ const QUICK_ICON_NAMES = [
 ];
 
 const SYSTEM_DEFAULT_MODEL_VALUE = "__system_default__";
+const SYSTEM_DEFAULT_MODEL_NAME = "nvidia/nemotron-3-super-120b-a12b:free";
+
+function normalizeModelOverride(value: string | null | undefined) {
+  const normalized = (value ?? "").trim();
+  if (!normalized || normalized === SYSTEM_DEFAULT_MODEL_NAME) {
+    return "";
+  }
+  return normalized;
+}
+
+function formatUserModelLabel(modelName: string) {
+  const trimmed = modelName.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  const afterSlash = trimmed.includes("/") ? trimmed.split("/").slice(1).join("/") : trimmed;
+  return afterSlash.endsWith(":free") ? afterSlash.slice(0, -5) : afterSlash;
+}
 
 function formatIconLabel(name: string) {
   return name.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
@@ -302,14 +320,15 @@ const AppChat = () => {
         const profile = await getProfile(profileId);
         setProfileName(profile.name);
         setProfileIconName(profile.icon_name);
+        const normalizedModelOverride = normalizeModelOverride(profile.model_override);
         setAssistantDraft({
           name: profile.name,
           topic: profile.topic ?? "",
           description: profile.description ?? "",
           iconName: profile.icon_name,
-          modelOverride: profile.model_override ?? "",
+          modelOverride: normalizedModelOverride,
         });
-        setSelectedModelOverride(profile.model_override ?? "");
+        setSelectedModelOverride(normalizedModelOverride);
       } catch {
         setProfileName(null);
         setProfileIconName(null);
@@ -638,9 +657,9 @@ const AppChat = () => {
     setIsSavingModelOverride(true);
     try {
       const updated = await updateProfile(profileId, {
-        model_override: nextValue.trim() || undefined,
+        model_override: nextValue.trim() ? nextValue.trim() : null,
       });
-      const persisted = updated.model_override ?? "";
+      const persisted = normalizeModelOverride(updated.model_override);
       setSelectedModelOverride(persisted);
       setAssistantDraft((prev) =>
         prev
@@ -1220,15 +1239,18 @@ const AppChat = () => {
                   className="h-11 w-[100px] sm:w-[150px] border-border bg-input text-foreground"
                   title="Model trả lời"
                 >
-                  <SelectValue placeholder="Mặc định hệ thống" />
+                  <SelectValue
+                    placeholder={`${formatUserModelLabel(SYSTEM_DEFAULT_MODEL_NAME)} (Mặc định)`}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={SYSTEM_DEFAULT_MODEL_VALUE}>
-                    Mặc định hệ thống
+                    {formatUserModelLabel(SYSTEM_DEFAULT_MODEL_NAME)} (Mặc định)
                   </SelectItem>
                   {modelOptions.map((model) => (
+                    model.model_name === SYSTEM_DEFAULT_MODEL_NAME ? null :
                     <SelectItem key={model.model_name} value={model.model_name}>
-                      {model.model_name}
+                      {formatUserModelLabel(model.model_name)}
                     </SelectItem>
                   ))}
                 </SelectContent>
