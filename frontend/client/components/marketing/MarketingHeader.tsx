@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Brain } from "lucide-react";
-import { getCurrentUser, type AuthUser } from "@/lib/auth";
+import { logout } from "@/lib/api";
+import { clearAuthSession, getCurrentUser, type AuthUser } from "@/lib/auth";
 
 interface MarketingHeaderProps {
   fixed?: boolean;
 }
 
 export default function MarketingHeader({ fixed = false }: MarketingHeaderProps) {
+  const router = useRouter();
   const [sessionUser, setSessionUser] = useState<AuthUser | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setSessionUser(getCurrentUser());
@@ -18,6 +22,25 @@ export default function MarketingHeader({ fixed = false }: MarketingHeaderProps)
 
   const primaryHref =
     sessionUser?.role === "ADMIN" ? "/admin/users" : "/app/profiles/new";
+
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch {
+      // Ignore API failure and clear local session anyway.
+    } finally {
+      clearAuthSession();
+      setSessionUser(null);
+      setIsLoggingOut(false);
+      router.push("/");
+      router.refresh();
+    }
+  };
 
   return (
     <header
@@ -35,13 +58,22 @@ export default function MarketingHeader({ fixed = false }: MarketingHeaderProps)
           <span className="text-xl font-bold font-display">RAGnostic</span>
         </Link>
         <div className="flex gap-4">
-          {!sessionUser && (
+          {!sessionUser ? (
             <Link
               href="/login"
               className="px-6 py-2 rounded-lg font-medium text-foreground hover:bg-muted/50 transition-colors"
             >
               Đăng nhập
             </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="px-6 py-2 rounded-lg font-medium text-foreground hover:bg-muted/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+            </button>
           )}
           <Link
             href={sessionUser ? primaryHref : "/login"}

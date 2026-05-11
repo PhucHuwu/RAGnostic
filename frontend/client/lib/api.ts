@@ -157,6 +157,13 @@ export async function apiRequest<T>(
           "REQUEST_TIMEOUT",
         );
       }
+      if (error instanceof TypeError) {
+        throw new ApiError(
+          "Không thể kết nối tới máy chủ. Vui lòng thử lại sau.",
+          503,
+          "SERVICE_UNAVAILABLE",
+        );
+      }
       throw error;
     } finally {
       if (timeoutId) {
@@ -380,6 +387,7 @@ export function login(username: string, password: string) {
     method: "POST",
     auth: false,
     body: { username, password },
+    timeoutMs: 15000,
   });
 }
 
