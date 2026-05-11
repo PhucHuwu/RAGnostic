@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, login } from "@/lib/api";
-import { setAuthSession } from "@/lib/auth";
+import { getCurrentUser, setAuthSession } from "@/lib/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   Eye,
@@ -25,7 +26,26 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    const sessionUser = getCurrentUser();
+    const fallbackPath =
+      sessionUser?.role === "ADMIN" ? "/admin/users" : "/app/profiles/new";
+    const requestedPath = searchParams.get("next");
+    const canUseRequestedPath =
+      typeof requestedPath === "string" &&
+      requestedPath.startsWith("/") &&
+      !requestedPath.startsWith("/admin") === (sessionUser?.role !== "ADMIN");
+    const targetPath = canUseRequestedPath ? requestedPath : fallbackPath;
+    router.prefetch(targetPath);
+  }, [router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +66,7 @@ const Login = () => {
 
     try {
       const response = await login(username, password);
+      setIsRedirecting(true);
       setAuthSession({
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
@@ -63,8 +84,9 @@ const Login = () => {
         requestedPath.startsWith("/") &&
         !requestedPath.startsWith("/admin") === (response.user.role !== "ADMIN");
 
-      router.push(canUseRequestedPath ? requestedPath : fallbackPath);
+      router.replace(canUseRequestedPath ? requestedPath : fallbackPath);
     } catch (err) {
+      setIsRedirecting(false);
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -74,6 +96,33 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-background">
+        <div className="flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+          <div className="w-full max-w-md space-y-6">
+            <Skeleton className="h-10 w-40" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="h-5 w-64" />
+            </div>
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        </div>
+        <div className="hidden lg:flex items-center justify-center px-8 py-12 bg-card/50">
+          <div className="w-full max-w-md space-y-4">
+            <Skeleton className="h-16 w-16 rounded-2xl mx-auto" />
+            <Skeleton className="h-8 w-48 mx-auto" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-5/6 mx-auto" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-background">
@@ -183,7 +232,7 @@ const Login = () => {
               {isLoading ? (
                 <>
                   <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                  <span>Đang đăng nhập...</span>
+                  <span>{isRedirecting ? "Đang chuyển vào ứng dụng..." : "Đang xác thực..."}</span>
                 </>
               ) : (
                 <>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { ApiError, login, register } from "@/lib/api";
 import { setAuthSession } from "@/lib/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Register = () => {
   const router = useRouter();
@@ -25,7 +26,12 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +70,35 @@ const Register = () => {
       setIsLoading(false);
     }
   };
+
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-background">
+        <div className="flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+          <div className="w-full max-w-md space-y-6">
+            <Skeleton className="h-10 w-40" />
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-44" />
+              <Skeleton className="h-5 w-64" />
+            </div>
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        </div>
+        <div className="hidden lg:flex items-center justify-center px-8 py-12 bg-card/50">
+          <div className="w-full max-w-md space-y-4">
+            <Skeleton className="h-16 w-16 rounded-2xl mx-auto" />
+            <Skeleton className="h-8 w-48 mx-auto" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-5/6 mx-auto" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-background">

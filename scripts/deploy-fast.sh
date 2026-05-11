@@ -8,19 +8,82 @@ FRONTEND_DIR="${ROOT_DIR}/frontend"
 DEPLOY_BACKEND_PORT="${DEPLOY_BACKEND_PORT:-3724}"
 DEPLOY_FRONTEND_PORT="${DEPLOY_FRONTEND_PORT:-3636}"
 
-echo "Deploying backend on :${DEPLOY_BACKEND_PORT}"
-pkill -f "uvicorn app.main:app --host 0.0.0.0 --port ${DEPLOY_BACKEND_PORT}" || true
-nohup "${BACKEND_DIR}/.venv/bin/uvicorn" app.main:app \
-  --host 0.0.0.0 \
-  --port "${DEPLOY_BACKEND_PORT}" \
-  --reload \
-  --env-file "${BACKEND_DIR}/.env" \
-  > /tmp/opencode/ragnostic-backend-deploy.log 2>&1 &
+kill_port() {
+  local port="$1"
+  local pids
+  pids="$(ss -ltnp "( sport = :${port} )" 2>/dev/null | grep -o 'pid=[0-9]\+' | cut -d= -f2 | sort -u || true)"
+  if [[ -n "${pids}" ]]; then
+    echo "Killing process(es) on :${port} -> ${pids}"
+    kill ${pids} || true
+    sleep 1
+    if ss -ltnp "( sport = :${port} )" 2>/dev/null | grep -q LISTEN; then
+      echo "Force killing remaining process(es) on :${port}"
+      kill -9 ${pids} || true
+    fi
+  fi
+}
 
-echo "Deploying frontend on :${DEPLOY_FRONTEND_PORT}"
-pkill -f "next dev -p 3000 --port ${DEPLOY_FRONTEND_PORT}" || true
-nohup env NEXT_PUBLIC_API_BASE_URL="http://localhost:${DEPLOY_BACKEND_PORT}/api/v1" npm --prefix "${FRONTEND_DIR}" run dev -- --port "${DEPLOY_FRONTEND_PORT}" \
-  > /tmp/opencode/ragnostic-frontend-deploy.log 2>&1 &
+start_backend_with_retry() {
+  local attempt=1
+  local max_attempts=3
+
+  while (( attempt <= max_attempts )); do
+    echo "Deploying backend on :${DEPLOY_BACKEND_PORT} (attempt ${attempt}/${max_attempts})"
+    nohup "${BACKEND_DIR}/.venv/bin/uvicorn" app.main:app \
+      --host 0.0.0.0 \
+      --port "${DEPLOY_BACKEND_PORT}" \
+      --reload \
+      --env-file "${BACKEND_DIR}/.env" \
+      > /tmp/opencode/ragnostic-backend-deploy.log 2>&1 &
+
+    sleep 2
+    if curl -s --max-time 2 "http://localhost:${DEPLOY_BACKEND_PORT}/api/v1/health" >/dev/null; then
+      return 0
+    fi
+
+    if grep -q "Address already in use" /tmp/opencode/ragnostic-backend-deploy.log 2>/dev/null; then
+      echo "Backend port ${DEPLOY_BACKEND_PORT} is busy. Retrying..."
+      kill_port "${DEPLOY_BACKEND_PORT}"
+    fi
+
+    ((attempt++))
+  done
+
+  echo "Failed to deploy backend on :${DEPLOY_BACKEND_PORT}"
+  return 1
+}
+
+start_frontend_with_retry() {
+  local attempt=1
+  local max_attempts=3
+
+  while (( attempt <= max_attempts )); do
+    echo "Deploying frontend on :${DEPLOY_FRONTEND_PORT} (attempt ${attempt}/${max_attempts})"
+    nohup env NEXT_PUBLIC_API_BASE_URL="http://localhost:${DEPLOY_BACKEND_PORT}/api/v1" npm --prefix "${FRONTEND_DIR}" run dev -- --port "${DEPLOY_FRONTEND_PORT}" \
+      > /tmp/opencode/ragnostic-frontend-deploy.log 2>&1 &
+
+    sleep 2
+    if curl -s --max-time 2 "http://localhost:${DEPLOY_FRONTEND_PORT}" >/dev/null; then
+      return 0
+    fi
+
+    if grep -q "Address already in use" /tmp/opencode/ragnostic-frontend-deploy.log 2>/dev/null; then
+      echo "Frontend port ${DEPLOY_FRONTEND_PORT} is busy. Retrying..."
+      kill_port "${DEPLOY_FRONTEND_PORT}"
+    fi
+
+    ((attempt++))
+  done
+
+  echo "Failed to deploy frontend on :${DEPLOY_FRONTEND_PORT}"
+  return 1
+}
+
+kill_port "${DEPLOY_BACKEND_PORT}"
+kill_port "${DEPLOY_FRONTEND_PORT}"
+
+start_backend_with_retry
+start_frontend_with_retry
 
 sleep 3
 BE_CODE="$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${DEPLOY_BACKEND_PORT}/api/v1/health" || true)"
