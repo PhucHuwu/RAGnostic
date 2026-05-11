@@ -7,6 +7,8 @@ FRONTEND_DIR="${ROOT_DIR}/frontend"
 
 DEPLOY_BACKEND_PORT="${DEPLOY_BACKEND_PORT:-3724}"
 DEPLOY_FRONTEND_PORT="${DEPLOY_FRONTEND_PORT:-3636}"
+DEPLOY_PUBLIC_HOST="${DEPLOY_PUBLIC_HOST:-172.16.4.205}"
+DEPLOY_API_BASE_URL="${DEPLOY_API_BASE_URL:-http://${DEPLOY_PUBLIC_HOST}:${DEPLOY_BACKEND_PORT}/api/v1}"
 
 kill_port() {
   local port="$1"
@@ -54,7 +56,7 @@ start_backend_with_retry() {
 
 build_frontend_prod() {
   echo "Building frontend production bundle"
-  npm --prefix "${FRONTEND_DIR}" run build > /tmp/opencode/ragnostic-frontend-build.log 2>&1
+  env NEXT_PUBLIC_API_BASE_URL="${DEPLOY_API_BASE_URL}" npm --prefix "${FRONTEND_DIR}" run build > /tmp/opencode/ragnostic-frontend-build.log 2>&1
 }
 
 start_frontend_with_retry() {
@@ -63,7 +65,7 @@ start_frontend_with_retry() {
 
   while (( attempt <= max_attempts )); do
     echo "Deploying frontend (prod) on :${DEPLOY_FRONTEND_PORT} (attempt ${attempt}/${max_attempts})"
-    nohup env PORT="${DEPLOY_FRONTEND_PORT}" HOST="0.0.0.0" NEXT_PUBLIC_API_BASE_URL="http://localhost:${DEPLOY_BACKEND_PORT}/api/v1" npm --prefix "${FRONTEND_DIR}" run start \
+    nohup env PORT="${DEPLOY_FRONTEND_PORT}" HOST="0.0.0.0" NEXT_PUBLIC_API_BASE_URL="${DEPLOY_API_BASE_URL}" npm --prefix "${FRONTEND_DIR}" run start \
       > /tmp/opencode/ragnostic-frontend-deploy.log 2>&1 &
 
     sleep 2
@@ -96,3 +98,4 @@ FE_CODE="$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${DEPLOY_FRO
 
 echo "Backend status:  ${BE_CODE} (http://localhost:${DEPLOY_BACKEND_PORT}/api/v1/health)"
 echo "Frontend status: ${FE_CODE} (http://localhost:${DEPLOY_FRONTEND_PORT})"
+echo "Frontend API base: ${DEPLOY_API_BASE_URL}"
