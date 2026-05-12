@@ -2,14 +2,14 @@
 
 ## 1. Tổng quan và mục tiêu
 
-RAGnostic là hệ thống RAG (Retrieval-Augmented Generation) đa người dùng, không phụ thuộc domain, cho phép mỗi người dùng tạo nhiều profile chatbot và khai thác tri thức từ bộ tài liệu riêng.
+RAGnostic là hệ thống RAG (Retrieval-Augmented Generation) đa tenant theo mô hình Workspace doanh nghiệp. Mỗi doanh nghiệp có Workspace riêng, tài liệu dùng chung theo phân quyền, chat của từng nhân viên là riêng tư, và assistant truy xuất tri thức từ kho chung của Workspace.
 
 ### 1.1 Mục tiêu nghiệp vụ
 
-- Người dùng có thể đăng nhập, tạo profile chatbot, tải tài liệu, chat theo profile.
+- Người dùng doanh nghiệp đăng nhập, chọn assistant phù hợp nghiệp vụ và chat theo session cá nhân.
 - Hệ thống truy xuất tri thức từ tài liệu đã nạp và áp dụng BM25 re-ranking để nâng chất lượng kết quả.
 - Lưu lịch sử hội thoại theo session độc lập, duy trì trí nhớ ngắn hạn 10 câu gần nhất.
-- Admin quản trị user, tài liệu và model AI đang chạy.
+- Quản trị theo nhiều vai trò: System Admin, Workspace Owner/Admin, Knowledge Manager, AI Admin, Member.
 - Admin theo dõi log hệ thống real-time, lọc theo mức độ/dịch vụ/khoảng thời gian/mã định danh.
 
 ### 1.2 Phạm vi tài liệu
@@ -36,10 +36,10 @@ Tài liệu này mô tả chi tiết:
 
 ### 2.2 Luồng dữ liệu tổng quát
 
-1. Người dùng tải tài liệu lên profile.
+1. Workspace Admin/Knowledge Manager tải tài liệu lên kho tri thức Workspace.
 2. Backend lưu file vào MinIO và metadata vào PostgreSQL.
 3. Worker chạy pipeline parse -> chunk -> embedding/index.
-4. Người dùng chat theo session của profile.
+4. Người dùng chat theo session cá nhân với assistant trong Workspace.
 5. Backend lấy memory 10 câu gần nhất + truy xuất chunk + BM25 re-ranking.
 6. Backend gọi LLM, lưu kết quả và trả nội dung Markdown.
 
@@ -54,20 +54,22 @@ Tài liệu này mô tả chi tiết:
   - `USER`: thao tác trên tài nguyên của chính mình.
   - `ADMIN`: quản trị tài nguyên toàn hệ thống.
 
-## 3.2 Quản lý profile chatbot
+## 3.2 Quản lý Workspace Assistant
 
-- User có thể tạo nhiều profile.
-- Mỗi profile có:
-  - Chủ đề, mô tả.
-  - Bộ tài liệu riêng.
+- Mỗi Workspace có thể tạo nhiều assistant theo ngữ cảnh nghiệp vụ (HR, IT, Legal, Sales...).
+- Mỗi assistant có:
+  - Tên, mô tả, phạm vi nghiệp vụ.
+  - Tập tài liệu truy cập được trong Workspace (theo ACL).
   - Cấu hình chunking (outline/đoạn/ngữ nghĩa/số ký tự).
   - Cấu hình retrieval (top_k, rerank_top_n).
+  - Dùng prompt hệ thống chung (không chỉnh sửa theo assistant/profile).
 
 ## 3.3 Quản lý tài liệu
 
 - Hỗ trợ định dạng: `pdf`, `docx`, `txt`.
-- Chức năng User: thêm, xóa, xem trước tài liệu của profile.
-- Chức năng Admin: quản trị tài liệu toàn hệ thống.
+- Chức năng Workspace Admin/Knowledge Manager: thêm, xóa, xem trước tài liệu trong Workspace.
+- Tài liệu có ACL theo phòng ban/chức vụ/nhóm người dùng.
+- Chức năng System Admin: quản trị tài liệu toàn hệ thống.
 - Trạng thái xử lý tài liệu:
   - `UPLOADED`
   - `PARSING`
@@ -78,16 +80,17 @@ Tài liệu này mô tả chi tiết:
 
 ## 3.4 Chat và quản lý hội thoại
 
-- Tạo session chat theo profile; các session tách biệt ngữ cảnh.
+- Tạo session chat theo assistant; các session tách biệt ngữ cảnh và quyền riêng tư theo từng người dùng.
 - Lưu lịch sử chat và hỗ trợ xem lại theo session.
 - Duy trì trí nhớ ngắn hạn: 10 câu hỏi gần nhất (cửa sổ hội thoại).
 - Nội dung trả lời hỗ trợ render Markdown.
 
 ## 3.5 Quản trị hệ thống
 
-- Quản trị user: xem danh sách, đổi trạng thái, reset mật khẩu.
-- Quản trị model hệ thống: thay đổi model AI mặc định đang dùng.
-- Quản trị tài liệu toàn cục.
+- System Admin: quản trị tenant/workspace, user hệ thống, model AI và tài nguyên toàn cục.
+- Workspace Owner/Admin: quản trị thành viên, phân quyền, assistant và tài liệu trong Workspace.
+- Knowledge Manager: phân loại, cập nhật và re-index dữ liệu.
+- AI Admin: cấu hình model AI, retrieval/RAG cho Workspace/Assistant (không quản trị prompt).
 
 ## 3.6 Giám sát và nhật ký
 
@@ -106,7 +109,7 @@ Tài liệu này mô tả chi tiết:
 - `username` (UNIQUE, NOT NULL)
 - `email` (UNIQUE, NULL)
 - `password_hash` (NOT NULL)
-- `role` (ENUM: `ADMIN`, `USER`)
+- `role` (ENUM: `SYSTEM_ADMIN`, `WORKSPACE_OWNER`, `WORKSPACE_ADMIN`, `KNOWLEDGE_MANAGER`, `AI_ADMIN`, `MEMBER`)
 - `status` (ENUM: `ACTIVE`, `LOCKED`, `DISABLED`)
 - `last_login_at` (TIMESTAMP, NULL)
 - `created_at`, `updated_at`, `deleted_at`
@@ -231,14 +234,14 @@ Ràng buộc đề xuất:
 
 - `config_key` (PK)
 - `value_json` (JSONB)
-- `scope` (ENUM: `GLOBAL`, `PROFILE`)
+- `scope` (ENUM: `GLOBAL`)
 - `updated_by` (FK -> `users.id`)
 - `updated_at`
 
 Ví dụ cấu hình:
 
 - Model mặc định hệ thống.
-- Prompt template.
+- Global system prompt (ẩn nội bộ backend, không trả về API/UI).
 - Giới hạn memory window.
 
 ### 4.1.11 `audit_logs`
